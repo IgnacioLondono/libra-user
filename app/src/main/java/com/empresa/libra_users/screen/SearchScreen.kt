@@ -130,7 +130,7 @@ fun BookResultItem(book: BookEntity, onClick: () -> Unit) {
             color = Color.LightGray
         ) {
             Box(contentAlignment = Alignment.Center) {
-                Text("Cover", style = MaterialTheme.typography.labelSmall)
+                Text("Portada", style = MaterialTheme.typography.labelSmall)
             }
         }
         Spacer(Modifier.width(16.dp))

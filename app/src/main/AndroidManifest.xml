@@ -19,6 +19,8 @@
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
         android:usesCleartextTraffic="true"
+        android:icon="@mipmap/library_logo"
+        android:roundIcon="@mipmap/library_logo"
         android:label="@string/app_name"
         android:supportsRtl="true"
         android:theme="@style/Theme.Librausers">

@@ -574,7 +574,7 @@ private fun AddBookDialog(
         "Romance" to 3
     )
 
-    val homeSections = listOf("Ninguno", "Trending", "Free")
+    val homeSections = listOf("Ninguno", "Tendencia", "Gratis")
     var homeSectionExpanded by remember { mutableStateOf(false) }
     var selectedHomeSection by remember { mutableStateOf(homeSections.first()) }
 
@@ -780,8 +780,12 @@ private fun AddBookDialog(
                     val anioInt = anio.toIntOrNull() ?: anioActual
                     val stockInt = stock.toIntOrNull() ?: 1
                     val categoryId = categoryMapping[categoria] ?: 1
-                    val sectionToSave =
-                        if (selectedHomeSection == "Ninguno") "None" else selectedHomeSection
+                    val sectionToSave = when (selectedHomeSection) {
+                        "Ninguno" -> "None"
+                        "Tendencia" -> "Trending"
+                        "Gratis" -> "Free"
+                        else -> selectedHomeSection
+                    }
 
                     val result = viewModel.addBook(
                         title = title,
@@ -871,9 +875,18 @@ private fun EditBookDialog(
         "Romance" to 3
     )
 
-    val homeSections = listOf("Ninguno", "Trending", "Free")
+    val homeSections = listOf("Ninguno", "Tendencia", "Gratis")
     var homeSectionExpanded by remember { mutableStateOf(false) }
-    var selectedHomeSection by remember { mutableStateOf(if (book.homeSection == "None") "Ninguno" else book.homeSection) }
+    var selectedHomeSection by remember { 
+        mutableStateOf(
+            when (book.homeSection) {
+                "None" -> "Ninguno"
+                "Trending" -> "Tendencia"
+                "Free" -> "Gratis"
+                else -> book.homeSection
+            }
+        )
+    }
 
     val anioActual = Calendar.getInstance().get(Calendar.YEAR)
 
@@ -1081,8 +1094,12 @@ private fun EditBookDialog(
                     val anioInt = anio.toIntOrNull() ?: book.anio
                     val stockInt = stock.toIntOrNull() ?: book.stock
                     val categoryId = categoryMapping[categoria] ?: book.categoryId.toInt()
-                    val sectionToSave =
-                        if (selectedHomeSection == "Ninguno") "None" else selectedHomeSection
+                    val sectionToSave = when (selectedHomeSection) {
+                        "Ninguno" -> "None"
+                        "Tendencia" -> "Trending"
+                        "Gratis" -> "Free"
+                        else -> selectedHomeSection
+                    }
 
                     val updatedBook = book.copy(
                         title = title,

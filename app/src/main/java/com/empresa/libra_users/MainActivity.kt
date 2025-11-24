@@ -13,14 +13,17 @@ import androidx.compose.material3.windowsizeclass.WindowSizeClass
 import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.empresa.libra_users.navigation.AppNavigation
+import com.empresa.libra_users.screen.SplashScreen
 import com.empresa.libra_users.ui.theme.LibrausersTheme
 import com.empresa.libra_users.util.RequestPermissions
 import com.empresa.libra_users.viewmodel.MainViewModel
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.launch
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -39,6 +42,8 @@ class MainActivity : ComponentActivity() {
 fun LibraAppRoot(windowSizeClass: WindowSizeClass) {
     val mainViewModel: MainViewModel = hiltViewModel()
     val isDarkMode by mainViewModel.isDarkMode.collectAsStateWithLifecycle()
+    val splashShown by mainViewModel.splashShown.collectAsStateWithLifecycle()
+    val scope = rememberCoroutineScope()
 
     LibrausersTheme(darkTheme = isDarkMode) {
         RequestPermissions {
@@ -47,10 +52,21 @@ fun LibraAppRoot(windowSizeClass: WindowSizeClass) {
                 modifier = Modifier.fillMaxSize(),
                 color = Color.Transparent
             ) {
-                AppNavigation(
-                    vm = mainViewModel,
-                    windowSizeClass = windowSizeClass
-                )
+                if (!splashShown) {
+                    // Mostrar splash solo la primera vez que se inicia la app
+                    SplashScreen(
+                        onFinish = {
+                            scope.launch {
+                                mainViewModel.markSplashShown()
+                            }
+                        }
+                    )
+                } else {
+                    AppNavigation(
+                        vm = mainViewModel,
+                        windowSizeClass = windowSizeClass
+                    )
+                }
             }
         }
     }

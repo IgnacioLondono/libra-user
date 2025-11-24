@@ -3,6 +3,7 @@ package com.empresa.libra_users.data
 import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -25,6 +26,7 @@ class UserPreferencesRepository @Inject constructor(@ApplicationContext private 
         val USER_EMAIL = stringPreferencesKey("user_email") // <-- NUEVA CLAVE
         val AUTH_TOKEN = stringPreferencesKey("auth_token")
         val USER_ROLE = stringPreferencesKey("user_role")
+        val SPLASH_SHOWN = booleanPreferencesKey("splash_shown")
     }
 
     // 3. Se exponen los valores como Flows para que la UI pueda reaccionar a los cambios.
@@ -44,6 +46,11 @@ class UserPreferencesRepository @Inject constructor(@ApplicationContext private 
     val userRole: Flow<String?> = context.dataStore.data
         .map { preferences ->
             preferences[USER_ROLE]
+        }
+
+    val splashShown: Flow<Boolean> = context.dataStore.data
+        .map { preferences ->
+            preferences[SPLASH_SHOWN] ?: false
         }
 
     // 4. Se crean funciones suspend para modificar los datos de forma segura.
@@ -83,5 +90,17 @@ class UserPreferencesRepository @Inject constructor(@ApplicationContext private 
     suspend fun getBearerToken(): String? {
         val token = getAuthToken()
         return token?.let { "Bearer $it" }
+    }
+    
+    // Función para marcar que el splash ya se mostró
+    suspend fun setSplashShown() {
+        context.dataStore.edit { preferences ->
+            preferences[SPLASH_SHOWN] = true
+        }
+    }
+    
+    // Función para obtener si el splash ya se mostró
+    suspend fun hasSplashShown(): Boolean {
+        return splashShown.first()
     }
 }

@@ -1,11 +1,11 @@
 package com.empresa.libra_users.domain.validation
 
-import android.util.Patterns // Usamos el patrón estándar de Android para emails
-
 // Valida que el email no esté vacío y cumpla patrón de email
 fun validateEmail(email: String): String? {                            // Retorna String? (mensaje) o null si está OK
     if (email.isBlank()) return "El email es obligatorio"              // Regla 1: no vacío
-    val ok = Patterns.EMAIL_ADDRESS.matcher(email).matches()           // Regla 2: coincide con patrón de email
+    // Usamos regex simple que funciona en tests unitarios y Android
+    val emailRegex = Regex("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}\$")
+    val ok = emailRegex.matches(email)                                 // Regla 2: coincide con patrón de email
     if (!ok) return "Formato de email inválido"                         // Si no cumple formato, devolvemos mensaje
     if (!email.endsWith("@gmail.com", ignoreCase = true)) return "Debe ser @gmail.com"  // Regla 3: debe ser gmail.com
     return null                                                          // OK

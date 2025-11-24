@@ -1,5 +1,6 @@
 package com.empresa.libra_users.screen
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
@@ -11,11 +12,14 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.empresa.libra_users.R
 import com.empresa.libra_users.ui.state.LoginUiState
 import com.empresa.libra_users.viewmodel.MainViewModel
 
@@ -63,6 +67,16 @@ private fun LoginContent(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
+            // Logo de la librería
+            Image(
+                painter = painterResource(id = R.drawable.library_logo),
+                contentDescription = "Logo Libra",
+                modifier = Modifier
+                    .size(150.dp)
+                    .padding(bottom = 16.dp),
+                contentScale = ContentScale.Fit
+            )
+            
             Text(
                 "Bienvenido",
                 style = MaterialTheme.typography.headlineLarge,

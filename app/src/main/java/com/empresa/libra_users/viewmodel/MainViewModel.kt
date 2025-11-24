@@ -131,6 +131,12 @@ class MainViewModel @Inject constructor(
     private val _isDarkMode = MutableStateFlow(false)
     val isDarkMode: StateFlow<Boolean> = _isDarkMode.asStateFlow()
 
+    val splashShown: StateFlow<Boolean> = userPreferencesRepository.splashShown.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = false
+    )
+
     private var searchDebounceJob: Job? = null
     private val searchDebounceMillis = 500L
 
@@ -580,5 +586,11 @@ class MainViewModel @Inject constructor(
 
     fun toggleDarkMode() {
         _isDarkMode.value = !_isDarkMode.value
+    }
+
+    fun markSplashShown() {
+        viewModelScope.launch {
+            userPreferencesRepository.setSplashShown()
+        }
     }
 }
