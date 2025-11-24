@@ -5,13 +5,16 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Article
 import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.material3.windowsizeclass.WindowSizeClass
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -37,8 +40,7 @@ import com.empresa.libra_users.viewmodel.MainViewModel
 import kotlinx.coroutines.launch
 
 object Routes {
-    const val AUTH_GRAPH = "auth_graph"
-    const val MAIN_GRAPH = "main_graph"
+    // Constantes de rutas para navegación
     const val LOGIN = "login"
     const val REGISTER = "register"
     const val HOME = "home"
@@ -57,8 +59,8 @@ data class NavItem(
 
 val mainNavItems = listOf(
     NavItem(Routes.HOME, "Inicio", Icons.Default.Home),
-    NavItem(Routes.CATALOG, "Catálogo", Icons.Default.MenuBook),
-    NavItem(Routes.NEWS, "Noticias", Icons.Default.Article),
+    NavItem(Routes.CATALOG, "Catálogo", Icons.AutoMirrored.Filled.MenuBook),
+    NavItem(Routes.NEWS, "Noticias", Icons.AutoMirrored.Filled.Article),
     NavItem(Routes.ACCOUNT_SETTINGS, "Cuenta", Icons.Default.AccountCircle)
 )
 
