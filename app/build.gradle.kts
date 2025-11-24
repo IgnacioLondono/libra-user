@@ -6,6 +6,9 @@ plugins {
     // Unificamos todo a KSP para Room y Hilt
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt)
+    
+    // JaCoCo para cobertura de código
+    id("jacoco")
 }
 
 android {
@@ -22,6 +25,9 @@ android {
     }
 
     buildTypes {
+        debug {
+            enableUnitTestCoverage = true
+        }
         release {
             isMinifyEnabled = false
             proguardFiles(
@@ -43,6 +49,62 @@ android {
     buildFeatures {
         compose = true
     }
+}
+
+// Configuración de JaCoCo
+tasks.withType<Test> {
+    extensions.configure<org.gradle.testing.jacoco.plugins.JacocoTaskExtension> {
+        isIncludeNoLocationClasses = true
+        excludes = listOf("jdk.internal.*")
+    }
+}
+
+tasks.register("jacocoTestReport", org.gradle.testing.jacoco.tasks.JacocoReport::class) {
+    dependsOn("testDebugUnitTest")
+    
+    reports {
+        xml.required.set(true)
+        html.required.set(true)
+        csv.required.set(false)
+    }
+    
+    val fileFilter = listOf(
+        "**/R.class",
+        "**/R$*.class",
+        "**/BuildConfig.*",
+        "**/Manifest*.*",
+        "**/*Test*.*",
+        "android/**/*.*",
+        "**/di/**",
+        "**/hilt/**",
+        "**/*_Hilt*",
+        "**/*_Factory*",
+        "**/*_MembersInjector*",
+        "**/*Module*",
+        "**/*Component*",
+        "**/LibraUsersApp*",
+        "**/MainActivity*",
+        "**/screen/**",  // Excluir pantallas de UI (Compose)
+        "**/navigation/**",  // Excluir navegación (UI)
+        "**/ui/theme/**",  // Excluir temas y componentes de UI
+        "**/util/CameraUtils*",  // Excluir utilidades de cámara (requieren Android)
+        "**/util/PermissionUtils*"  // Excluir utilidades de permisos (requieren Android)
+    )
+    
+    // Para Android, los archivos compilados están en kotlin/classes
+    val debugTree = fileTree("${project.buildDir}/tmp/kotlin-classes/debug") {
+        exclude(fileFilter)
+    }
+    val mainSrc = "${project.projectDir}/src/main/java"
+    
+    sourceDirectories.setFrom(files(mainSrc))
+    classDirectories.setFrom(files(debugTree))
+    
+    // Buscar archivos de ejecución en múltiples ubicaciones posibles
+    val executionDataFiles = fileTree("${project.buildDir}") {
+        include("**/*.exec")
+    }
+    executionData.setFrom(executionDataFiles)
 }
 
 dependencies {
