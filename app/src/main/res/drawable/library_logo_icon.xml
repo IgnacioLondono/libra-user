@@ -3,7 +3,7 @@
     <item
         android:drawable="@drawable/library_logo"
         android:gravity="center"
-        android:width="108dp"
-        android:height="108dp" />
+        android:width="66dp"
+        android:height="66dp" />
 </layer-list>
 
