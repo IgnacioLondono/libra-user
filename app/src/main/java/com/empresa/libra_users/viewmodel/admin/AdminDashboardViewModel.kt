@@ -2,7 +2,6 @@ package com.empresa.libra_users.viewmodel.admin
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.empresa.libra_users.data.local.database.getInitialBooks
 import com.empresa.libra_users.data.local.user.BookEntity
 import com.empresa.libra_users.data.local.user.LoanEntity
 import com.empresa.libra_users.data.local.user.UserEntity
@@ -73,37 +72,22 @@ class AdminDashboardViewModel @Inject constructor(
         loadUsers()
         loadLoanDetails()
         loadReports()
-        // Precargar datos si no hay libros
-        checkAndLoadInitialData()
-    }
-
-    /**
-     * NOTA: Esta función es un respaldo, pero la carga principal de datos iniciales
-     * se ejecuta en MainViewModel.init, que se crea al iniciar la app.
-     * Esta función aquí solo se ejecuta si el admin entra antes de que MainViewModel
-     * haya cargado los datos (caso muy raro).
-     */
-    private fun checkAndLoadInitialData() {
-        viewModelScope.launch {
-            try {
-                val count = bookRepository.count()
-                if (count == 0) {
-                    // Cargar libros iniciales (respaldo - normalmente ya se cargaron en MainViewModel)
-                    val initialBooks = getInitialBooks()
-                    initialBooks.forEach { book ->
-                        bookRepository.insert(book)
-                    }
-                }
-            } catch (e: Exception) {
-                // Error al cargar datos iniciales
-            }
-        }
+        // Los datos ahora se obtienen desde los microservicios
+        // No se cargan datos precargados localmente
     }
 
     fun loadDashboardTotals() {
         viewModelScope.launch {
             _dashboardUiState.update { it.copy(isLoading = true) }
             try {
+                // Asegurar que los datos estén cargados
+                if (bookRepository.books.value.isEmpty()) {
+                    bookRepository.loadAllBooks()
+                }
+                if (userRepository.users.value.isEmpty()) {
+                    userRepository.loadAllUsers()
+                }
+                
                 _dashboardUiState.update {
                     it.copy(
                         totalBooks = bookRepository.count(),
@@ -120,16 +104,25 @@ class AdminDashboardViewModel @Inject constructor(
     }
 
     fun loadBooks() {
-        bookRepository.getAllBooks()
-            .onStart { _booksUiState.update { it.copy(isLoading = true) } }
-            .catch { e -> _booksUiState.update { it.copy(isLoading = false, error = e.message) } }
-            .onEach { books ->
-                _booksUiState.update { state ->
-                    val filtered = applyBookFilters(books, state.searchQuery, state.selectedCategory, state.soloDisponibles)
-                    state.copy(isLoading = false, books = books, filteredBooks = filtered)
+        viewModelScope.launch {
+            _booksUiState.update { it.copy(isLoading = true) }
+            try {
+                // Cargar libros desde el API si no están cargados
+                if (bookRepository.books.value.isEmpty()) {
+                    bookRepository.loadAllBooks()
                 }
+                
+                bookRepository.getAllBooksFlow()
+                    .collect { books ->
+                        val filtered = applyBookFilters(books, _booksUiState.value.searchQuery, _booksUiState.value.selectedCategory, _booksUiState.value.soloDisponibles)
+                        _booksUiState.update { state ->
+                            state.copy(isLoading = false, books = books, filteredBooks = filtered)
+                        }
+                    }
+            } catch (e: Exception) {
+                _booksUiState.update { it.copy(isLoading = false, error = e.message) }
             }
-            .launchIn(viewModelScope)
+        }
     }
 
     private fun applyBookFilters(
@@ -170,31 +163,45 @@ class AdminDashboardViewModel @Inject constructor(
     }
 
     fun loadUsers() {
-        userRepository.getUsers()
-            .onStart { _usersUiState.update { it.copy(isLoading = true) } }
-            .catch { e -> _usersUiState.update { it.copy(isLoading = false, error = e.message) } }
-            .onEach { users -> _usersUiState.update { it.copy(isLoading = false, users = users) } }
-            .launchIn(viewModelScope)
+        viewModelScope.launch {
+            _usersUiState.update { it.copy(isLoading = true) }
+            try {
+                // Cargar usuarios desde el API si no están cargados
+                if (userRepository.users.value.isEmpty()) {
+                    userRepository.loadAllUsers()
+                }
+                
+                userRepository.getUsers()
+                    .collect { users ->
+                        _usersUiState.update { it.copy(isLoading = false, users = users) }
+                    }
+            } catch (e: Exception) {
+                _usersUiState.update { it.copy(isLoading = false, error = e.message) }
+            }
+        }
     }
 
     fun loadLoanDetails() {
         viewModelScope.launch {
-            loanRepository.getAllLoansFlow()
-                .onStart { _loansUiState.update { it.copy(isLoading = true) } }
-                .catch { e -> _loansUiState.update { it.copy(isLoading = false, error = e.message) } }
-                .collect { loans ->
-                    // Actualizar estados de préstamos vencidos
-                    updateOverdueLoans(loans)
-                    val details = loans.map { loan ->
-                        LoanDetails(
-                            loan = loan,
-                            book = bookRepository.getBookById(loan.bookId),
-                            user = userRepository.getUserById(loan.userId)
-                        )
+            _loansUiState.update { it.copy(isLoading = true) }
+            try {
+                loanRepository.getAllLoansFlow()
+                    .collect { loans ->
+                        // Actualizar estados de préstamos vencidos
+                        updateOverdueLoans(loans)
+                        val details = loans.map { loan ->
+                            LoanDetails(
+                                loan = loan,
+                                book = bookRepository.getBookById(loan.bookId),
+                                user = userRepository.getUserById(loan.userId)
+                            )
+                        }
+                        val filtered = applyLoanFilters(details, _loansUiState.value)
+                        _loansUiState.update { it.copy(isLoading = false, loans = details, filteredLoans = filtered) }
                     }
-                    val filtered = applyLoanFilters(details, _loansUiState.value)
-                    _loansUiState.update { it.copy(isLoading = false, loans = details, filteredLoans = filtered) }
-                }
+            } catch (e: Exception) {
+                _loansUiState.update { it.copy(isLoading = false, error = e.message) }
+            }
         }
     }
 
@@ -256,9 +263,17 @@ class AdminDashboardViewModel @Inject constructor(
         viewModelScope.launch {
             _reportsUiState.update { it.copy(isLoading = true) }
             try {
+                // Asegurar que los datos estén cargados
+                if (bookRepository.books.value.isEmpty()) {
+                    bookRepository.loadAllBooks()
+                }
+                if (userRepository.users.value.isEmpty()) {
+                    userRepository.loadAllUsers()
+                }
+                
                 val allLoans = loanRepository.getAllLoans()
-                val allBooks = bookRepository.getAllBooks().first()
-                val allUsers = userRepository.getUsers().first()
+                val allBooks = bookRepository.getAllBooks()
+                val allUsers = userRepository.getUsers().value
 
                 val topBooks = allLoans.groupBy { it.bookId }
                     .mapNotNull { (bookId, loans) ->
@@ -304,6 +319,24 @@ class AdminDashboardViewModel @Inject constructor(
 
     fun updateUser(user: UserEntity) = viewModelScope.launch {
         userRepository.updateUser(user)
+    }
+    
+    /**
+     * Elimina un usuario de la base de datos del microservicio.
+     * La operación se realiza primero en el API, y solo si es exitosa se actualiza el estado en memoria.
+     */
+    fun deleteUser(user: UserEntity) = viewModelScope.launch {
+        try {
+            val result = userRepository.deleteUser(user)
+            if (result.isFailure) {
+                _usersUiState.update { it.copy(error = result.exceptionOrNull()?.message ?: "Error al eliminar usuario") }
+            } else {
+                // Recargar usuarios para reflejar los cambios
+                loadUsers()
+            }
+        } catch (e: Exception) {
+            _usersUiState.update { it.copy(error = "Error al eliminar usuario: ${e.message}") }
+        }
     }
 
     fun addBook(
@@ -429,7 +462,7 @@ class AdminDashboardViewModel @Inject constructor(
                 return Result.failure(IllegalArgumentException("No hay ejemplares disponibles de este libro."))
             }
 
-            // Crear el préstamo
+            // PRIMERO: Crear el préstamo en la base de datos del microservicio
             val newLoan = LoanEntity(
                 userId = userId,
                 bookId = bookId,
@@ -438,39 +471,66 @@ class AdminDashboardViewModel @Inject constructor(
                 returnDate = null,
                 status = "Active"
             )
-            loanRepository.insert(newLoan)
-
-            // Actualizar disponibles del libro
-            val updatedBook = book.copy(disponibles = book.disponibles - 1)
-            bookRepository.update(updatedBook)
-
-            Result.success("Préstamo creado correctamente.")
+            val loanResult = loanRepository.insert(newLoan)
+            
+            if (loanResult.isSuccess) {
+                // SOLO SI EL PRÉSTAMO SE CREÓ EXITOSAMENTE: Actualizar disponibles del libro
+                val updatedBook = book.copy(
+                    disponibles = book.disponibles - 1,
+                    status = if (book.disponibles - 1 > 0) "Available" else "Loaned"
+                )
+                val bookUpdateResult = bookRepository.update(updatedBook)
+                
+                if (bookUpdateResult.isSuccess) {
+                    Result.success("Préstamo creado correctamente en la base de datos.")
+                } else {
+                    Result.failure(IllegalArgumentException("Préstamo creado pero error al actualizar libro: ${bookUpdateResult.exceptionOrNull()?.message}"))
+                }
+            } else {
+                Result.failure(IllegalArgumentException(loanResult.exceptionOrNull()?.message ?: "Error al crear préstamo"))
+            }
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
 
+    /**
+     * Marca un préstamo como devuelto en la base de datos del microservicio.
+     * La operación se realiza primero en el API, y solo si es exitosa se actualiza el estado en memoria.
+     */
     fun markLoanAsReturned(loan: LoanEntity) {
         viewModelScope.launch {
             try {
-                val updatedLoan = loan.copy(
-                    status = "Returned",
-                    returnDate = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE)
-                )
-                loanRepository.update(updatedLoan)
-
-                // Actualizar disponibles del libro
-                val book = bookRepository.getBookById(loan.bookId)
-                book?.let {
-                    val updatedBook = it.copy(disponibles = it.disponibles + 1)
-                    bookRepository.update(updatedBook)
+                // PRIMERO: Devolver préstamo en la base de datos del microservicio
+                val returnResult = loanRepository.returnLoan(loan.id)
+                
+                if (returnResult.isSuccess) {
+                    // SOLO SI ES EXITOSO: Actualizar disponibles del libro
+                    val book = bookRepository.getBookById(loan.bookId)
+                    book?.let {
+                        val updatedBook = it.copy(
+                            disponibles = it.disponibles + 1,
+                            status = if (it.disponibles + 1 > 0) "Available" else it.status
+                        )
+                        bookRepository.update(updatedBook)
+                    }
+                    // Recargar detalles de préstamos para reflejar los cambios
+                    loadLoanDetails()
+                } else {
+                    _loansUiState.update { 
+                        it.copy(error = returnResult.exceptionOrNull()?.message ?: "Error al devolver préstamo") 
+                    }
                 }
             } catch (e: Exception) {
-                // Error al marcar como devuelto
+                _loansUiState.update { it.copy(error = "Error al marcar como devuelto: ${e.message}") }
             }
         }
     }
 
+    /**
+     * Extiende un préstamo en la base de datos del microservicio.
+     * La operación se realiza primero en el API, y solo si es exitosa se actualiza el estado en memoria.
+     */
     suspend fun extendLoan(loan: LoanEntity, nuevaFechaDevolucion: String): Result<String> {
         return try {
             // Validar que la nueva fecha sea posterior a la fecha actual
@@ -479,32 +539,50 @@ class AdminDashboardViewModel @Inject constructor(
                 return Result.failure(IllegalArgumentException("La nueva fecha de devolución debe ser posterior a hoy."))
             }
 
-            val updatedLoan = loan.copy(dueDate = nuevaFechaDevolucion)
-            loanRepository.update(updatedLoan)
-            Result.success("Plazo extendido correctamente.")
+            // PRIMERO: Extender préstamo en la base de datos del microservicio
+            val extendResult = loanRepository.extendLoan(loan.id)
+            
+            if (extendResult.isSuccess) {
+                Result.success("Plazo extendido correctamente en la base de datos.")
+            } else {
+                Result.failure(IllegalArgumentException(extendResult.exceptionOrNull()?.message ?: "Error al extender préstamo"))
+            }
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
 
+    /**
+     * Cancela un préstamo en la base de datos del microservicio.
+     * La operación se realiza primero en el API, y solo si es exitosa se actualiza el estado en memoria.
+     * NOTA: Si el API no tiene un endpoint específico para cancelar, se puede usar returnLoan o actualizar manualmente.
+     */
     suspend fun cancelLoan(loan: LoanEntity): Result<String> {
         return try {
             if (loan.status != "Active") {
                 return Result.failure(IllegalArgumentException("Solo se pueden cancelar préstamos activos."))
             }
 
-            // Actualizar el préstamo
+            // PRIMERO: Actualizar el préstamo en la base de datos del microservicio
+            // Si el API tiene un endpoint para cancelar, usarlo aquí
+            // Por ahora, actualizamos manualmente el estado
             val updatedLoan = loan.copy(status = "Cancelled")
-            loanRepository.update(updatedLoan)
+            val loanUpdateResult = loanRepository.update(updatedLoan)
 
-            // Actualizar disponibles del libro
-            val book = bookRepository.getBookById(loan.bookId)
-            book?.let {
-                val updatedBook = it.copy(disponibles = it.disponibles + 1)
-                bookRepository.update(updatedBook)
+            if (loanUpdateResult.isSuccess) {
+                // SOLO SI ES EXITOSO: Actualizar disponibles del libro
+                val book = bookRepository.getBookById(loan.bookId)
+                book?.let {
+                    val updatedBook = it.copy(
+                        disponibles = it.disponibles + 1,
+                        status = if (it.disponibles + 1 > 0) "Available" else it.status
+                    )
+                    bookRepository.update(updatedBook)
+                }
+                Result.success("Préstamo cancelado correctamente en la base de datos.")
+            } else {
+                Result.failure(IllegalArgumentException(loanUpdateResult.exceptionOrNull()?.message ?: "Error al cancelar préstamo"))
             }
-
-            Result.success("Préstamo cancelado correctamente.")
         } catch (e: Exception) {
             Result.failure(e)
         }

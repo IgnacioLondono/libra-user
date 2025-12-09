@@ -23,5 +23,25 @@ interface NotificationApi {
     suspend fun markNotificationAsRead(
         @Path("notificationId") notificationId: String
     ): Response<NotificationDto>
+    
+    @PATCH("api/notifications/user/{userId}/read-all")
+    suspend fun markAllAsRead(
+        @Path("userId") userId: String
+    ): Response<Unit>
+    
+    @GET("api/notifications/{notificationId}")
+    suspend fun getNotificationById(
+        @Path("notificationId") notificationId: String
+    ): Response<NotificationDto>
+    
+    @PATCH("api/notifications/{notificationId}")
+    suspend fun deleteNotification(
+        @Path("notificationId") notificationId: String
+    ): Response<Unit>
+    
+    @PATCH("api/notifications/user/{userId}/delete-all")
+    suspend fun deleteAllNotifications(
+        @Path("userId") userId: String
+    ): Response<Unit>
 }
 

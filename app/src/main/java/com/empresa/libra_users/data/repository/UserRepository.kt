@@ -1,23 +1,34 @@
 package com.empresa.libra_users.data.repository
 
+import android.content.Context
+import android.net.Uri
 import com.empresa.libra_users.data.UserPreferencesRepository
-import com.empresa.libra_users.data.local.user.UserDao
 import com.empresa.libra_users.data.local.user.UserEntity
 import com.empresa.libra_users.data.remote.dto.LoginRequestDto
 import com.empresa.libra_users.data.remote.dto.RegisterRequestDto
 import com.empresa.libra_users.data.remote.dto.UpdateUserRequestDto
 import com.empresa.libra_users.data.remote.dto.UserApi
 import com.empresa.libra_users.data.remote.mapper.toEntity
-import kotlinx.coroutines.flow.Flow
+import com.empresa.libra_users.util.ImageUtils
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import retrofit2.HttpException
 import java.io.IOException
 import javax.inject.Inject
+import javax.inject.Singleton
 
+@Singleton
 class UserRepository @Inject constructor(
-    private val userDao: UserDao,
     private val userApi: UserApi,
-    private val userPreferences: UserPreferencesRepository
+    private val userPreferences: UserPreferencesRepository,
+    @ApplicationContext private val context: Context
 ) {
+    
+    // Estado en memoria para los usuarios (sin Room)
+    private val _users = MutableStateFlow<List<UserEntity>>(emptyList())
+    val users: StateFlow<List<UserEntity>> = _users.asStateFlow()
     
     suspend fun login(email: String, pass: String): Result<String> {
         // Caso especial para admin
@@ -26,7 +37,6 @@ class UserRepository @Inject constructor(
         }
         
         return try {
-            // Intentar login con API REST
             val request = LoginRequestDto(email = email, password = pass)
             val response = userApi.login(request)
             
@@ -38,34 +48,23 @@ class UserRepository @Inject constructor(
                 userPreferences.saveUserEmail(loginResponse.user.email)
                 userPreferences.saveUserRole(loginResponse.user.role)
                 
-                // Guardar usuario en Room local como caché
+                // Actualizar estado en memoria
                 val userEntity = loginResponse.user.toEntity()
-                userDao.insert(userEntity)
+                val currentUsers = _users.value.toMutableList()
+                val index = currentUsers.indexOfFirst { it.id == userEntity.id }
+                if (index >= 0) {
+                    currentUsers[index] = userEntity
+                } else {
+                    currentUsers.add(userEntity)
+                }
+                _users.value = currentUsers
                 
                 Result.success(loginResponse.user.role.uppercase())
             } else {
-                // Fallback a Room local si la API falla
-                val user = userDao.getByEmail(email)
-                if (user != null && user.status == "blocked") {
-                    return Result.failure(IllegalArgumentException("Tu cuenta ha sido bloqueada."))
-                }
-                return if (user != null && user.password == pass) {
-                    Result.success("USER")
-                } else {
-                    Result.failure(IllegalArgumentException("Credenciales Inválidas"))
-                }
+                Result.failure(IllegalArgumentException("Credenciales inválidas"))
             }
         } catch (e: IOException) {
-            // Error de red, fallback a Room local
-            val user = userDao.getByEmail(email)
-            if (user != null && user.status == "blocked") {
-                return Result.failure(IllegalArgumentException("Tu cuenta ha sido bloqueada."))
-            }
-            return if (user != null && user.password == pass) {
-                Result.success("USER")
-            } else {
-                Result.failure(IllegalArgumentException("Credenciales Inválidas"))
-            }
+            Result.failure(IllegalArgumentException("Error de conexión: ${e.message}"))
         } catch (e: HttpException) {
             Result.failure(IllegalArgumentException("Error de autenticación: ${e.message()}"))
         } catch (e: Exception) {
@@ -73,56 +72,78 @@ class UserRepository @Inject constructor(
         }
     }
 
-    suspend fun register(name: String, email: String, phone: String, pass: String, profilePictureUri: String?): Result<Long> {
+    /**
+     * Registra un nuevo usuario en la base de datos del microservicio.
+     * Si se proporciona un Uri de imagen, se convierte a Base64 antes de enviar.
+     * 
+     * @param name Nombre del usuario
+     * @param email Email del usuario
+     * @param phone Teléfono del usuario (opcional)
+     * @param pass Contraseña del usuario
+     * @param profileImageUri Uri de la imagen de perfil (opcional)
+     * @return Result<Long> con el ID del usuario creado o error
+     */
+    suspend fun register(
+        name: String, 
+        email: String, 
+        phone: String, 
+        pass: String, 
+        profileImageUri: String?
+    ): Result<Long> {
         if (email.equals("admin123@gmail.com", ignoreCase = true)) {
             return Result.failure(IllegalArgumentException("Este correo no se puede registrar."))
         }
         
         return try {
-            // Intentar registro con API REST
+            // Convertir imagen a Base64 si está presente
+            val profileImageBase64 = profileImageUri?.let { uriString ->
+                try {
+                    val uri = Uri.parse(uriString)
+                    ImageUtils.uriToBase64(
+                        context = context,
+                        uri = uri,
+                        maxWidth = 800,
+                        maxHeight = 800,
+                        quality = 85
+                    ) ?: run {
+                        // Si falla la conversión, continuar sin imagen
+                        null
+                    }
+                } catch (e: Exception) {
+                    // Si hay error al convertir, continuar sin imagen
+                    e.printStackTrace()
+                    null
+                }
+            }
+            
+            // PRIMERO: Crear usuario en la base de datos del microservicio
             val request = RegisterRequestDto(
                 name = name,
                 email = email,
                 password = pass,
-                phone = phone.ifEmpty { null }
+                phone = phone.ifEmpty { null },
+                profileImageBase64 = profileImageBase64
             )
             val response = userApi.register(request)
             
             if (response.isSuccessful && response.body() != null) {
                 val userDto = response.body()!!
                 
-                // Guardar usuario en Room local como caché
-                val userEntity = userDto.toEntity().copy(password = pass)
-                val id = userDao.insert(userEntity)
+                // SOLO SI ES EXITOSO: Actualizar estado en memoria
+                val userEntity = userDto.toEntity().copy(
+                    password = pass, 
+                    profilePictureUri = userDto.profileImageUri // Usar la URL del backend si existe
+                )
+                val currentUsers = _users.value.toMutableList()
+                currentUsers.add(userEntity)
+                _users.value = currentUsers
                 
-                Result.success(id)
+                Result.success(userEntity.id)
             } else {
-                // Fallback a Room local si la API falla
-                if (userDao.getByEmail(email) != null) {
-                    return Result.failure(IllegalArgumentException("Correo ya existente"))
-                }
-                val id = userDao.insert(UserEntity(
-                    name = name,
-                    email = email,
-                    phone = phone,
-                    password = pass,
-                    profilePictureUri = profilePictureUri
-                ))
-                Result.success(id)
+                Result.failure(IllegalArgumentException("Error al registrar usuario en la base de datos"))
             }
         } catch (e: IOException) {
-            // Error de red, fallback a Room local
-            if (userDao.getByEmail(email) != null) {
-                return Result.failure(IllegalArgumentException("Correo ya existente"))
-            }
-            val id = userDao.insert(UserEntity(
-                name = name,
-                email = email,
-                phone = phone,
-                password = pass,
-                profilePictureUri = profilePictureUri
-            ))
-            Result.success(id)
+            Result.failure(IllegalArgumentException("Error de conexión: ${e.message}"))
         } catch (e: HttpException) {
             val errorMessage = when (e.code()) {
                 409 -> "Correo ya existente"
@@ -134,39 +155,103 @@ class UserRepository @Inject constructor(
         }
     }
 
-    fun getUsers(): Flow<List<UserEntity>> = userDao.getAll()
+    /**
+     * Carga todos los usuarios desde el API.
+     */
+    suspend fun loadAllUsers(): Result<Int> {
+        return try {
+            val response = userApi.getAllUsers()
+            if (response.isSuccessful && response.body() != null) {
+                val usersDto = response.body()!!
+                val usersEntity = usersDto.map { it.toEntity() }
+                _users.value = usersEntity
+                Result.success(usersEntity.size)
+            } else {
+                Result.failure(IllegalArgumentException("Error al cargar usuarios"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    fun getUsers(): StateFlow<List<UserEntity>> = users
 
     suspend fun getUserById(id: Long): UserEntity? {
         return try {
-            // El AuthInterceptor agregará automáticamente el token si existe
             val response = userApi.getUserById(id.toString())
             if (response.isSuccessful && response.body() != null) {
                 val userDto = response.body()!!
                 val userEntity = userDto.toEntity()
-                // Actualizar caché local
-                userDao.insert(userEntity)
+                // Actualizar estado en memoria
+                val currentUsers = _users.value.toMutableList()
+                val index = currentUsers.indexOfFirst { it.id == id }
+                if (index >= 0) {
+                    currentUsers[index] = userEntity
+                } else {
+                    currentUsers.add(userEntity)
+                }
+                _users.value = currentUsers
                 userEntity
             } else {
-                // Fallback a Room local
-                userDao.getById(id)
+                // Buscar en estado en memoria
+                _users.value.find { it.id == id }
             }
         } catch (e: Exception) {
-            // Error, usar Room local
-            userDao.getById(id)
+            // Buscar en estado en memoria
+            _users.value.find { it.id == id }
         }
     }
 
-    suspend fun getUserByEmail(email: String): UserEntity? = userDao.getByEmail(email)
+    suspend fun getUserByEmail(email: String): UserEntity? {
+        // Primero buscar en estado en memoria
+        val user = _users.value.find { it.email.equals(email, ignoreCase = true) }
+        if (user != null) return user
+        
+        // Si no está, intentar obtener del API
+        return try {
+            // Nota: El API podría no tener un endpoint para buscar por email
+            // En ese caso, cargar todos los usuarios
+            loadAllUsers()
+            _users.value.find { it.email.equals(email, ignoreCase = true) }
+        } catch (e: Exception) {
+            null
+        }
+    }
 
-    suspend fun updateUser(user: UserEntity): Result<Unit> {
+    /**
+     * Actualiza un usuario en la base de datos del microservicio.
+     * Si se proporciona un Uri de imagen nuevo, se convierte a Base64 antes de enviar.
+     * Solo actualiza el estado en memoria si la operación en el API es exitosa.
+     * 
+     * @param user Usuario con los datos actualizados
+     * @param newProfileImageUri Uri de la nueva imagen de perfil (opcional, si es diferente a la actual)
+     */
+    suspend fun updateUser(user: UserEntity, newProfileImageUri: String? = null): Result<Unit> {
         return try {
             if (user.id > 0) {
-                // Intentar actualizar en API REST
-                // El AuthInterceptor agregará automáticamente el token si existe
+                // Convertir nueva imagen a Base64 si se proporciona un Uri nuevo
+                val profileImageBase64 = newProfileImageUri?.let { uriString ->
+                    try {
+                        val uri = Uri.parse(uriString)
+                        ImageUtils.uriToBase64(
+                            context = context,
+                            uri = uri,
+                            maxWidth = 800,
+                            maxHeight = 800,
+                            quality = 85
+                        ) ?: null
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                        null
+                    }
+                }
+                
+                // PRIMERO: Intentar actualizar en el API/base de datos
                 val updateRequest = UpdateUserRequestDto(
                     name = user.name,
                     phone = user.phone.ifEmpty { null },
-                    profileImageUri = user.profilePictureUri
+                    profileImageUri = user.profilePictureUri, // Mantener la URI existente si no hay nueva
+                    profileImageBase64 = profileImageBase64 // Enviar Base64 si hay nueva imagen
                 )
                 val response = userApi.updateUser(user.id.toString(), updateRequest)
                 
@@ -176,25 +261,64 @@ class UserRepository @Inject constructor(
                         id = user.id,
                         password = user.password // Mantener contraseña local
                     )
-                    // Actualizar caché local
-                    userDao.update(updatedEntity)
+                    // SOLO SI ES EXITOSO: Actualizar estado en memoria
+                    val currentUsers = _users.value.toMutableList()
+                    val index = currentUsers.indexOfFirst { it.id == user.id }
+                    if (index >= 0) {
+                        currentUsers[index] = updatedEntity
+                    } else {
+                        currentUsers.add(updatedEntity)
+                    }
+                    _users.value = currentUsers
                     Result.success(Unit)
                 } else {
-                    // Fallback a Room local
-                    userDao.update(user)
-                    Result.success(Unit)
+                    Result.failure(IllegalArgumentException("Error al actualizar usuario en la base de datos"))
                 }
             } else {
-                // Usuario nuevo, solo actualizar local
-                userDao.update(user)
-                Result.success(Unit)
+                Result.failure(IllegalArgumentException("ID de usuario inválido"))
             }
+        } catch (e: IOException) {
+            Result.failure(IllegalArgumentException("Error de conexión: ${e.message}"))
+        } catch (e: HttpException) {
+            Result.failure(IllegalArgumentException("Error HTTP: ${e.message()}"))
         } catch (e: Exception) {
-            // Error, actualizar solo local
-            userDao.update(user)
-            Result.success(Unit)
+            Result.failure(IllegalArgumentException("Error inesperado: ${e.message}"))
         }
     }
 
-    suspend fun countUsers(): Int = userDao.countUsers()
+    suspend fun countUsers(): Int {
+        if (_users.value.isEmpty()) {
+            loadAllUsers()
+        }
+        return _users.value.size
+    }
+    
+    /**
+     * Elimina un usuario de la base de datos del microservicio.
+     * Solo actualiza el estado en memoria si la operación en el API es exitosa.
+     */
+    suspend fun deleteUser(user: UserEntity): Result<Unit> {
+        return try {
+            if (user.id > 0) {
+                // PRIMERO: Intentar eliminar en el API/base de datos
+                val response = userApi.deleteUser(user.id.toString())
+                
+                if (response.isSuccessful) {
+                    // SOLO SI ES EXITOSO: Eliminar del estado en memoria
+                    _users.value = _users.value.filter { it.id != user.id }
+                    Result.success(Unit)
+                } else {
+                    Result.failure(IllegalArgumentException("Error al eliminar usuario en la base de datos"))
+                }
+            } else {
+                Result.failure(IllegalArgumentException("ID de usuario inválido"))
+            }
+        } catch (e: IOException) {
+            Result.failure(IllegalArgumentException("Error de conexión: ${e.message}"))
+        } catch (e: HttpException) {
+            Result.failure(IllegalArgumentException("Error HTTP: ${e.message()}"))
+        } catch (e: Exception) {
+            Result.failure(IllegalArgumentException("Error inesperado: ${e.message}"))
+        }
+    }
 }

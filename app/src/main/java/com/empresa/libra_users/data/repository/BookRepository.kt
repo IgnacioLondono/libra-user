@@ -1,150 +1,199 @@
 package com.empresa.libra_users.data.repository
 
-import com.empresa.libra_users.data.local.user.BookDao
 import com.empresa.libra_users.data.local.user.BookEntity
 import com.empresa.libra_users.data.remote.dto.BookApi
 import com.empresa.libra_users.data.remote.mapper.toDto
 import com.empresa.libra_users.data.remote.mapper.toEntity
-import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import retrofit2.HttpException
 import java.io.IOException
 import javax.inject.Inject
+import javax.inject.Singleton
 
+@Singleton
 class BookRepository @Inject constructor(
-    private val bookDao: BookDao,
     private val bookApi: BookApi
 ) {
     
-    suspend fun insert(book: BookEntity): Long {
+    // Estado en memoria para los libros (sin Room)
+    private val _books = MutableStateFlow<List<BookEntity>>(emptyList())
+    val books: StateFlow<List<BookEntity>> = _books.asStateFlow()
+    
+    /**
+     * Carga todos los libros desde el API y actualiza el estado.
+     */
+    suspend fun loadAllBooks(): Result<Int> {
         return try {
-            if (book.id == 0L) {
-                // Intentar crear en el backend
-                // El AuthInterceptor agregará automáticamente el token si existe
-                val bookDto = book.toDto()
-                val response = bookApi.createBook(bookDto)
-                
+            var totalLoaded = 0
+            var page = 0
+            val pageSize = 100
+            val allBooks = mutableListOf<BookEntity>()
+            
+            while (true) {
+                val response = bookApi.getBooks(page = page, size = pageSize)
                 if (response.isSuccessful && response.body() != null) {
-                    val createdBook = response.body()!!
-                    val bookEntity = createdBook.toEntity()
-                    // Insertar en Room con el ID del backend
-                    bookDao.insert(bookEntity)
-                    bookEntity.id
+                    val booksDto = response.body()!!.content
+                    if (booksDto.isEmpty()) break
+                    
+                    val booksEntity = booksDto.map { it.toEntity() }
+                    allBooks.addAll(booksEntity)
+                    totalLoaded += booksEntity.size
+                    
+                    if (booksDto.size < pageSize) break
+                    page++
                 } else {
-                    // Fallback a Room local
-                    bookDao.insert(book)
+                    break
                 }
+            }
+            
+            _books.value = allBooks
+            Result.success(totalLoaded)
+        } catch (e: IOException) {
+            Result.failure(e)
+        } catch (e: HttpException) {
+            Result.failure(e)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+    
+    /**
+     * Obtiene todos los libros (desde el estado en memoria).
+     * Si el estado está vacío, carga desde el API.
+     */
+    suspend fun getAllBooks(): List<BookEntity> {
+        if (_books.value.isEmpty()) {
+            loadAllBooks()
+        }
+        return _books.value
+    }
+    
+    /**
+     * Obtiene todos los libros como Flow (para compatibilidad con código existente).
+     */
+    fun getAllBooksFlow(): StateFlow<List<BookEntity>> = books
+    
+    /**
+     * Crea un libro en la base de datos del microservicio.
+     * Solo actualiza el estado en memoria si la operación en el API es exitosa.
+     */
+    suspend fun insert(book: BookEntity): Result<Long> {
+        return try {
+            // PRIMERO: Intentar crear en el API/base de datos
+            val bookDto = book.toDto()
+            val response = bookApi.createBook(bookDto)
+            
+            if (response.isSuccessful && response.body() != null) {
+                val createdBook = response.body()!!
+                val bookEntity = createdBook.toEntity()
+                // SOLO SI ES EXITOSO: Actualizar estado en memoria
+                _books.value = _books.value + bookEntity
+                Result.success(bookEntity.id)
             } else {
-                // Libro existente, solo insertar local
-                bookDao.insert(book)
+                Result.failure(IllegalArgumentException("Error al crear libro en la base de datos"))
             }
         } catch (e: IOException) {
-            // Error de red, fallback a Room local
-            bookDao.insert(book)
+            Result.failure(IllegalArgumentException("Error de conexión: ${e.message}"))
         } catch (e: HttpException) {
-            // Error HTTP, fallback a Room local
-            bookDao.insert(book)
+            Result.failure(IllegalArgumentException("Error HTTP: ${e.message()}"))
         } catch (e: Exception) {
-            // Otro error, fallback a Room local
-            bookDao.insert(book)
+            Result.failure(IllegalArgumentException("Error inesperado: ${e.message}"))
         }
     }
 
-    fun getAllBooks(): Flow<List<BookEntity>> = bookDao.getAllBooks()
-
+    /**
+     * Actualiza un libro en la base de datos del microservicio.
+     * Solo actualiza el estado en memoria si la operación en el API es exitosa.
+     */
     suspend fun update(book: BookEntity): Result<Unit> {
         return try {
             if (book.id > 0) {
-                // Intentar actualizar en el backend
-                // El AuthInterceptor agregará automáticamente el token si existe
+                // PRIMERO: Intentar actualizar en el API/base de datos
                 val bookDto = book.toDto()
                 val response = bookApi.updateBook(book.id.toString(), bookDto)
                 
                 if (response.isSuccessful && response.body() != null) {
                     val updatedBook = response.body()!!
                     val bookEntity = updatedBook.toEntity().copy(id = book.id)
-                    // Actualizar caché local
-                    bookDao.update(bookEntity)
+                    // SOLO SI ES EXITOSO: Actualizar estado en memoria
+                    _books.value = _books.value.map { if (it.id == book.id) bookEntity else it }
                     Result.success(Unit)
                 } else {
-                    // Fallback a Room local
-                    bookDao.update(book)
-                    Result.success(Unit)
+                    Result.failure(IllegalArgumentException("Error al actualizar libro en la base de datos"))
                 }
             } else {
-                // Libro nuevo, solo actualizar local
-                bookDao.update(book)
-                Result.success(Unit)
+                Result.failure(IllegalArgumentException("ID de libro inválido"))
             }
         } catch (e: IOException) {
-            // Error de red, actualizar solo local
-            bookDao.update(book)
-            Result.success(Unit)
+            Result.failure(IllegalArgumentException("Error de conexión: ${e.message}"))
         } catch (e: HttpException) {
-            // Error HTTP, actualizar solo local
-            bookDao.update(book)
-            Result.success(Unit)
+            Result.failure(IllegalArgumentException("Error HTTP: ${e.message()}"))
         } catch (e: Exception) {
-            // Otro error, actualizar solo local
-            bookDao.update(book)
-            Result.success(Unit)
+            Result.failure(IllegalArgumentException("Error inesperado: ${e.message}"))
         }
     }
 
+    /**
+     * Elimina un libro de la base de datos del microservicio.
+     * Solo actualiza el estado en memoria si la operación en el API es exitosa.
+     */
     suspend fun delete(book: BookEntity): Result<Unit> {
         return try {
             if (book.id > 0) {
-                // Intentar eliminar en el backend
-                // El AuthInterceptor agregará automáticamente el token si existe
+                // PRIMERO: Intentar eliminar en el API/base de datos
                 val response = bookApi.deleteBook(book.id.toString())
                 
                 if (response.isSuccessful) {
-                    // Eliminar también de Room local
-                    bookDao.delete(book)
+                    // SOLO SI ES EXITOSO: Eliminar del estado en memoria
+                    _books.value = _books.value.filter { it.id != book.id }
                     Result.success(Unit)
                 } else {
-                    // Fallback: eliminar solo local
-                    bookDao.delete(book)
-                    Result.success(Unit)
+                    Result.failure(IllegalArgumentException("Error al eliminar libro en la base de datos"))
                 }
             } else {
-                // Libro sin ID, eliminar solo local
-                bookDao.delete(book)
-                Result.success(Unit)
+                Result.failure(IllegalArgumentException("ID de libro inválido"))
             }
         } catch (e: IOException) {
-            // Error de red, eliminar solo local
-            bookDao.delete(book)
-            Result.success(Unit)
+            Result.failure(IllegalArgumentException("Error de conexión: ${e.message}"))
         } catch (e: HttpException) {
-            // Error HTTP, eliminar solo local
-            bookDao.delete(book)
-            Result.success(Unit)
+            Result.failure(IllegalArgumentException("Error HTTP: ${e.message()}"))
         } catch (e: Exception) {
-            // Otro error, eliminar solo local
-            bookDao.delete(book)
-            Result.success(Unit)
+            Result.failure(IllegalArgumentException("Error inesperado: ${e.message}"))
         }
     }
 
-    suspend fun count(): Int = bookDao.count()
+    suspend fun count(): Int {
+        if (_books.value.isEmpty()) {
+            loadAllBooks()
+        }
+        return _books.value.size
+    }
 
     suspend fun getBookById(id: Long): BookEntity? {
         return try {
-            // Intentar obtener del backend primero
             val response = bookApi.getBookById(id.toString())
             if (response.isSuccessful && response.body() != null) {
                 val bookDto = response.body()!!
                 val bookEntity = bookDto.toEntity()
-                // Actualizar caché local
-                bookDao.insert(bookEntity)
+                // Actualizar estado en memoria si no existe
+                val currentBooks = _books.value.toMutableList()
+                val index = currentBooks.indexOfFirst { it.id == id }
+                if (index >= 0) {
+                    currentBooks[index] = bookEntity
+                } else {
+                    currentBooks.add(bookEntity)
+                }
+                _books.value = currentBooks
                 bookEntity
             } else {
-                // Fallback a Room local
-                bookDao.getBookById(id)
+                // Buscar en estado en memoria
+                _books.value.find { it.id == id }
             }
         } catch (e: Exception) {
-            // Error, usar Room local
-            bookDao.getBookById(id)
+            // Buscar en estado en memoria
+            _books.value.find { it.id == id }
         }
     }
 
@@ -153,23 +202,27 @@ class BookRepository @Inject constructor(
             val response = bookApi.searchBooks(query = query, page = 0, size = 100)
             if (response.isSuccessful && response.body() != null) {
                 val booksDto = response.body()!!.content
-                val booksEntity = booksDto.map { it.toEntity() }
-                // Actualizar caché local
-                booksEntity.forEach { bookDao.insert(it) }
-                booksEntity
+                booksDto.map { it.toEntity() }
             } else {
-                // Fallback a Room local
-                bookDao.searchBooks(query)
+                // Buscar en estado en memoria
+                _books.value.filter {
+                    it.title.contains(query, ignoreCase = true) ||
+                    it.author.contains(query, ignoreCase = true) ||
+                    it.isbn.contains(query, ignoreCase = true)
+                }
             }
         } catch (e: Exception) {
-            // Error, usar Room local
-            bookDao.searchBooks(query)
+            // Buscar en estado en memoria
+            _books.value.filter {
+                it.title.contains(query, ignoreCase = true) ||
+                it.author.contains(query, ignoreCase = true) ||
+                it.isbn.contains(query, ignoreCase = true)
+            }
         }
     }
 
     suspend fun searchBooksWithFilters(query: String, categoria: String?, soloDisponibles: Boolean): List<BookEntity> {
         return try {
-            // Si hay categoría, usar endpoint de categoría
             val response = if (categoria != null) {
                 bookApi.getBooksByCategory(categoria, page = 0, size = 100)
             } else {
@@ -179,7 +232,6 @@ class BookRepository @Inject constructor(
             if (response.isSuccessful && response.body() != null) {
                 var booksDto = response.body()!!.content
                 
-                // Filtrar por query si existe
                 if (query.isNotEmpty()) {
                     booksDto = booksDto.filter {
                         it.title.contains(query, ignoreCase = true) ||
@@ -188,22 +240,34 @@ class BookRepository @Inject constructor(
                     }
                 }
                 
-                // Filtrar por disponibilidad
                 if (soloDisponibles) {
                     booksDto = booksDto.filter { it.availableCopies > 0 }
                 }
                 
-                val booksEntity = booksDto.map { it.toEntity() }
-                // Actualizar caché local
-                booksEntity.forEach { bookDao.insert(it) }
-                booksEntity
+                booksDto.map { it.toEntity() }
             } else {
-                // Fallback a Room local
-                bookDao.searchBooksWithFilters(query, categoria, if (soloDisponibles) 1 else 0)
+                // Filtrar en estado en memoria
+                _books.value.filter { book ->
+                    val matchesQuery = query.isBlank() || 
+                        book.title.contains(query, ignoreCase = true) ||
+                        book.author.contains(query, ignoreCase = true) ||
+                        book.isbn.contains(query, ignoreCase = true)
+                    val matchesCategory = categoria == null || book.categoria == categoria
+                    val matchesDisponibles = !soloDisponibles || book.disponibles > 0
+                    matchesQuery && matchesCategory && matchesDisponibles
+                }
             }
         } catch (e: Exception) {
-            // Error, usar Room local
-            bookDao.searchBooksWithFilters(query, categoria, if (soloDisponibles) 1 else 0)
+            // Filtrar en estado en memoria
+            _books.value.filter { book ->
+                val matchesQuery = query.isBlank() || 
+                    book.title.contains(query, ignoreCase = true) ||
+                    book.author.contains(query, ignoreCase = true) ||
+                    book.isbn.contains(query, ignoreCase = true)
+                val matchesCategory = categoria == null || book.categoria == categoria
+                val matchesDisponibles = !soloDisponibles || book.disponibles > 0
+                matchesQuery && matchesCategory && matchesDisponibles
+            }
         }
     }
 
@@ -212,37 +276,30 @@ class BookRepository @Inject constructor(
             val response = bookApi.getBooksByCategory(categoria, page = 0, size = 100)
             if (response.isSuccessful && response.body() != null) {
                 val booksDto = response.body()!!.content
-                val booksEntity = booksDto.map { it.toEntity() }
-                // Actualizar caché local
-                booksEntity.forEach { bookDao.insert(it) }
-                booksEntity
+                booksDto.map { it.toEntity() }
             } else {
-                // Fallback a Room local
-                bookDao.getBooksByCategory(categoria)
+                // Filtrar en estado en memoria
+                _books.value.filter { it.categoria == categoria }
             }
         } catch (e: Exception) {
-            // Error, usar Room local
-            bookDao.getBooksByCategory(categoria)
+            // Filtrar en estado en memoria
+            _books.value.filter { it.categoria == categoria }
         }
     }
 
     suspend fun getAvailableBooks(): List<BookEntity> {
         return try {
-            // Obtener todos los libros y filtrar por disponibilidad
             val response = bookApi.getBooks(page = 0, size = 100)
             if (response.isSuccessful && response.body() != null) {
                 val booksDto = response.body()!!.content.filter { it.availableCopies > 0 }
-                val booksEntity = booksDto.map { it.toEntity() }
-                // Actualizar caché local
-                booksEntity.forEach { bookDao.insert(it) }
-                booksEntity
+                booksDto.map { it.toEntity() }
             } else {
-                // Fallback a Room local
-                bookDao.getAvailableBooks()
+                // Filtrar en estado en memoria
+                _books.value.filter { it.disponibles > 0 }
             }
         } catch (e: Exception) {
-            // Error, usar Room local
-            bookDao.getAvailableBooks()
+            // Filtrar en estado en memoria
+            _books.value.filter { it.disponibles > 0 }
         }
     }
 
@@ -251,15 +308,17 @@ class BookRepository @Inject constructor(
             val response = bookApi.getBookAvailability(bookId.toString())
             if (response.isSuccessful && response.body() != null) {
                 val availability = response.body()!!
-                // Calcular préstamos activos = totalCopies - availableCopies
                 availability.totalCopies - availability.availableCopies
             } else {
-                // Fallback a Room local
-                bookDao.countActiveLoansForBook(bookId)
+                0
             }
         } catch (e: Exception) {
-            // Error, usar Room local
-            bookDao.countActiveLoansForBook(bookId)
+            0
         }
     }
+    
+    /**
+     * Sincroniza los libros desde el API (alias para loadAllBooks).
+     */
+    suspend fun syncBooksFromApi(): Result<Int> = loadAllBooks()
 }

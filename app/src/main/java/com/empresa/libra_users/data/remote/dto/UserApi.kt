@@ -2,6 +2,7 @@ package com.empresa.libra_users.data.remote.dto
 
 import retrofit2.Response
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.PUT
@@ -37,5 +38,13 @@ interface UserApi {
     
     @POST("api/users/logout")
     suspend fun logout(): Response<Unit>
+    
+    @GET("api/users")
+    suspend fun getAllUsers(): Response<List<UserDto>>
+    
+    @DELETE("api/users/{userId}")
+    suspend fun deleteUser(
+        @Path("userId") userId: String
+    ): Response<Unit>
 }
 

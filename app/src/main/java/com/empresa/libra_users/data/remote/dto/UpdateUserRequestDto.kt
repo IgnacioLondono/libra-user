@@ -6,6 +6,8 @@ data class UpdateUserRequestDto(
     val name: String?,
     val phone: String?,
     @SerializedName("profileImageUri")
-    val profileImageUri: String?
+    val profileImageUri: String? = null,
+    @SerializedName("profileImageBase64")
+    val profileImageBase64: String? = null
 )
 
