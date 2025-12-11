@@ -43,13 +43,23 @@ fun CatalogScreen(vm: MainViewModel) {
         refreshing = isRefreshing,
         onRefresh = { vm.refreshCatalog() }
     )
+    
+    // Cargar libros al iniciar la pantalla
+    LaunchedEffect(Unit) {
+        vm.loadCategorizedBooks()
+    }
 
-    val categories = listOf("Todos") + homeState.categorizedBooks.keys.toList()
+    // Obtener todas las categorías únicas de los libros (usando categoria del BookEntity)
+    val allBooks = homeState.categorizedBooks.values.flatten().distinctBy { it.id }
+    val uniqueCategories = remember(allBooks) {
+        allBooks.mapNotNull { it.categoria }.distinct().sorted()
+    }
+    val categories = listOf("Todos") + uniqueCategories
 
     val booksForCategory = if (selectedCategory == "Todos") {
-        homeState.categorizedBooks.values.flatten().distinctBy { it.id }
+        allBooks
     } else {
-        homeState.categorizedBooks[selectedCategory] ?: emptyList()
+        allBooks.filter { it.categoria == selectedCategory }
     }
 
     val filteredBooks = if (searchQuery.isBlank()) {

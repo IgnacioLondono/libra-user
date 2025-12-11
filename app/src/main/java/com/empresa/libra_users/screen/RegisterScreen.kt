@@ -57,7 +57,15 @@ fun RegisterScreen(
     // --- LAUNCHERS ---
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia(),
-        onResult = { uri -> vm.onRegisterProfileImageChange(uri) }
+        onResult = { uri ->
+            if (uri != null) {
+                vm.onRegisterProfileImageChange(uri)
+            } else {
+                scope.launch {
+                    snackbarHostState.showSnackbar("No se seleccionó ninguna imagen")
+                }
+            }
+        }
     )
 
     val cameraLauncher = rememberLauncherForActivityResult(
@@ -102,10 +110,18 @@ fun RegisterScreen(
                 headlineContent = { Text("Desde la Galería") },
                 leadingContent = { Icon(Icons.Default.PhotoLibrary, contentDescription = "Elegir desde la Galería") },
                 modifier = Modifier.clickable {
-                    scope.launch { sheetState.hide() }.invokeOnCompletion {
+                    scope.launch { 
+                        sheetState.hide()
+                    }.invokeOnCompletion {
                         if (!sheetState.isVisible) {
                             showImageSourceSheet = false
-                            photoPickerLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                            try {
+                                photoPickerLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                            } catch (e: Exception) {
+                                scope.launch {
+                                    snackbarHostState.showSnackbar("Error al abrir la galería: ${e.message}")
+                                }
+                            }
                         }
                     }
                 }

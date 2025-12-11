@@ -50,6 +50,11 @@ fun HomeScreen(
         onRefresh = { vm.refreshHome() }
     )
     
+    // Cargar libros al iniciar la pantalla
+    LaunchedEffect(Unit) {
+        vm.loadCategorizedBooks()
+    }
+    
     // Mostrar mensaje de bienvenida solo una vez cuando el usuario se carga
     LaunchedEffect(user?.id) {
         if (user != null && !hasShownWelcome) {
@@ -78,8 +83,18 @@ fun HomeScreen(
         )
     }
 
-    val freeBooks = allBooks.filter { it.homeSection == "Free" }
-    val trendingBooks = allBooks.filter { it.homeSection == "Trending" }
+    // Si no hay libros con homeSection configurado, mostrar algunos libros aleatorios
+    val freeBooks = if (allBooks.any { it.homeSection == "Free" }) {
+        allBooks.filter { it.homeSection == "Free" }
+    } else {
+        allBooks.shuffled().take(5) // Mostrar 5 libros aleatorios si no hay "Free"
+    }
+    
+    val trendingBooks = if (allBooks.any { it.homeSection == "Trending" }) {
+        allBooks.filter { it.homeSection == "Trending" }
+    } else {
+        allBooks.shuffled().take(6) // Mostrar 6 libros aleatorios si no hay "Trending"
+    }
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) }
