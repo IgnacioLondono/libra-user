@@ -527,7 +527,12 @@ class AdminDashboardViewModel @Inject constructor(
             )
             val loanResult = loanRepository.insert(newLoan)
             
-            if (loanResult.isSuccess && book != null) {
+            if (loanResult.isSuccess) {
+                // Validar que book no sea null antes de usarlo
+                if (book == null) {
+                    return Result.failure(IllegalArgumentException("Libro no encontrado"))
+                }
+                
                 // SOLO SI EL PRÉSTAMO SE CREÓ EXITOSAMENTE: Actualizar disponibles del libro
                 val updatedBook = book.copy(
                     disponibles = book.disponibles - 1,
