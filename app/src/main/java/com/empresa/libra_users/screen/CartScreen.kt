@@ -15,6 +15,7 @@ import androidx.compose.material3.pulltorefresh.PullRefreshIndicator
 import androidx.compose.material3.pulltorefresh.pullRefresh
 import androidx.compose.material3.pulltorefresh.rememberPullRefreshState
 import androidx.compose.runtime.*
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -32,6 +33,7 @@ import com.empresa.libra_users.navigation.Routes
 import com.empresa.libra_users.viewmodel.CartItem
 import com.empresa.libra_users.viewmodel.MainViewModel
 import java.text.NumberFormat
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -42,19 +44,19 @@ fun CartScreen(vm: MainViewModel, navController: NavController) {
     var showPaymentDialog by remember { mutableStateOf(false) }
     var showMultipleLoansDialog by remember { mutableStateOf(false) }
     var selectedCartItemForPayment by remember { mutableStateOf<CartItem?>(null) }
-    var isRefreshing by remember { mutableStateOf(false) }
-    
     val isMultipleLoans = cartItems.size > 1
     val totalPrice = cartItems.sumOf { it.price }
+    val scope = rememberCoroutineScope()
+    var isRefreshing by remember { mutableStateOf(false) }
     
     // Pull to refresh
     val pullRefreshState = rememberPullRefreshState(
         refreshing = isRefreshing,
         onRefresh = {
             isRefreshing = true
-            vm.refreshCart()
-            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
-                kotlinx.coroutines.delay(500)
+            scope.launch {
+                vm.refreshCart()
+                delay(500)
                 isRefreshing = false
             }
         }
@@ -154,70 +156,71 @@ fun CartScreen(vm: MainViewModel, navController: NavController) {
                         .fillMaxSize()
                         .padding(paddingValues)
                 ) {
-                if (isMultipleLoans) {
-                    // Resumen cuando hay más de un préstamo
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant
-                        )
-                    ) {
-                        Column(
+                    if (isMultipleLoans) {
+                        // Resumen cuando hay más de un préstamo
+                        Card(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                            shape = RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant
+                            )
                         ) {
-                            Text(
-                                text = "Resumen de Préstamos",
-                                style = MaterialTheme.typography.titleLarge,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Text(
-                                text = "${cartItems.size} libros en tu carrito",
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            val minDays = cartItems.minOfOrNull { it.loanDays } ?: 0
-                            val maxDays = cartItems.maxOfOrNull { it.loanDays } ?: 0
-                            Text(
-                                text = "Rango de días: ${if (minDays == maxDays) "$minDays días" else "$minDays - $maxDays días"}",
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Text(
+                                    text = "Resumen de Préstamos",
+                                    style = MaterialTheme.typography.titleLarge,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = "${cartItems.size} libros en tu carrito",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                val minDays = cartItems.minOfOrNull { it.loanDays } ?: 0
+                                val maxDays = cartItems.maxOfOrNull { it.loanDays } ?: 0
+                                Text(
+                                    text = "Rango de días: ${if (minDays == maxDays) "$minDays días" else "$minDays - $maxDays días"}",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                    
+                    LazyColumn(
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        items(cartItems, key = { it.book.id }) { cartItem ->
+                            CartItemCard(
+                                cartItem = cartItem,
+                                isMultiple = isMultipleLoans,
+                                isDarkMode = isDarkMode,
+                                onRemove = { vm.removeFromCart(cartItem.book.id) },
+                                onDaysChange = { days: Int -> vm.updateLoanDays(cartItem.book.id, days) },
+                                onConfirmLoan = { 
+                                    if (!isMultipleLoans) {
+                                        selectedCartItemForPayment = cartItem
+                                        showPaymentDialog = true
+                                    }
+                                }
                             )
                         }
                     }
                 }
-                
-                LazyColumn(
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    items(cartItems, key = { it.book.id }) { cartItem ->
-                        CartItemCard(
-                            cartItem = cartItem,
-                            isMultiple = isMultipleLoans,
-                            isDarkMode = isDarkMode,
-                            onRemove = { vm.removeFromCart(cartItem.book.id) },
-                            onDaysChange = { days -> vm.updateLoanDays(cartItem.book.id, days) },
-                            onConfirmLoan = { 
-                                if (!isMultipleLoans) {
-                                    selectedCartItemForPayment = cartItem
-                                    showPaymentDialog = true
-                                }
-                            }
-                        )
-                    }
-                }
-                PullRefreshIndicator(
-                    refreshing = isRefreshing,
-                    state = pullRefreshState,
-                    modifier = Modifier.align(Alignment.TopCenter)
-                )
+            PullRefreshIndicator(
+                refreshing = isRefreshing,
+                state = pullRefreshState,
+                modifier = Modifier.align(Alignment.TopCenter)
+            )
             }
         }
         
