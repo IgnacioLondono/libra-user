@@ -34,6 +34,7 @@ import com.empresa.libra_users.viewmodel.MainViewModel
 import java.text.NumberFormat
 import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CartScreen(vm: MainViewModel, navController: NavController) {
     val cartItems by vm.cart.collectAsStateWithLifecycle()

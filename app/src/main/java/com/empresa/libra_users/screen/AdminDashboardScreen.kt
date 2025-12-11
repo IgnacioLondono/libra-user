@@ -233,7 +233,7 @@ private fun AdminTopAppBar(
 // ADMIN HOME SCREEN (DASHBOARD CON STATISTICS CARDS)
 // ============================================================================
 
-@OptIn(ExperimentalLayoutApi::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun AdminHomeScreen(
     modifier: Modifier = Modifier,

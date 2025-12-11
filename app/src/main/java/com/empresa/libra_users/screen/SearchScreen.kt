@@ -12,6 +12,7 @@ import androidx.compose.material3.pulltorefresh.pullRefresh
 import androidx.compose.material3.pulltorefresh.rememberPullRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -24,6 +25,7 @@ import com.empresa.libra_users.data.local.user.BookEntity
 import com.empresa.libra_users.viewmodel.MainViewModel
 
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchScreen(
     vm: MainViewModel,

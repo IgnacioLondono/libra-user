@@ -13,6 +13,7 @@ import androidx.compose.material3.pulltorefresh.PullRefreshIndicator
 import androidx.compose.material3.pulltorefresh.pullRefresh
 import androidx.compose.material3.pulltorefresh.rememberPullRefreshState
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -26,6 +27,7 @@ import com.empresa.libra_users.data.local.user.BookEntity
 import com.empresa.libra_users.viewmodel.MainViewModel
 import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     vm: MainViewModel,
