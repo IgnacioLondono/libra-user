@@ -520,7 +520,7 @@ class AdminDashboardViewModel @Inject constructor(
         }
         
         // Ahora book es no-null, podemos usarlo directamente
-        val nonNullBook = book
+        val nonNullBook: BookEntity = book
         
         return try {
 

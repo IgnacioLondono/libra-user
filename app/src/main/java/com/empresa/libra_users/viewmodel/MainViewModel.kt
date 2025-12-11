@@ -303,10 +303,11 @@ class MainViewModel @Inject constructor(
             }
             
             // Validar que userId no sea null
-            val nonNullUserId = userId ?: run {
+            if (userId == null) {
                 _home.update { it.copy(errorMsg = "Usuario no autenticado") }
                 return@launch
             }
+            val nonNullUserId: Long = userId
             
             // Validar días de préstamo
             val daysError = validateLoanDays(loanDays)
@@ -338,7 +339,7 @@ class MainViewModel @Inject constructor(
             }
             
             // Ahora bookToLoan es no-null, podemos usarlo directamente
-            val book = bookToLoan
+            val book: BookEntity = bookToLoan
 
             try {
                 val loanDate = LocalDate.now()
