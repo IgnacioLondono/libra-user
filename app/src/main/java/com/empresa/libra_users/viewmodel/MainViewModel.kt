@@ -303,7 +303,7 @@ class MainViewModel @Inject constructor(
             }
             
             // Validar que userId no sea null
-            if (userId == null) {
+            val nonNullUserId = userId ?: run {
                 _home.update { it.copy(errorMsg = "Usuario no autenticado") }
                 return@launch
             }
@@ -332,7 +332,7 @@ class MainViewModel @Inject constructor(
             }
             
             // Validar que bookToLoan no sea null
-            if (bookToLoan == null) {
+            val nonNullBook = bookToLoan ?: run {
                 _home.update { it.copy(errorMsg = "Libro no encontrado") }
                 return@launch
             }
@@ -343,7 +343,7 @@ class MainViewModel @Inject constructor(
                 val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
 
                 val newLoan = LoanEntity(
-                    userId = userId,
+                    userId = nonNullUserId,
                     bookId = bookId,
                     loanDate = loanDate.format(formatter),
                     dueDate = dueDate.format(formatter),
@@ -356,9 +356,9 @@ class MainViewModel @Inject constructor(
                 
                 if (loanResult.isSuccess) {
                     // SOLO SI EL PRÉSTAMO SE CREÓ EXITOSAMENTE: Actualizar el libro
-                    val updatedBook = bookToLoan.copy(
+                    val updatedBook = nonNullBook.copy(
                         status = "Loaned",
-                        disponibles = (bookToLoan.disponibles - 1).coerceAtLeast(0)
+                        disponibles = (nonNullBook.disponibles - 1).coerceAtLeast(0)
                     )
                     val bookUpdateResult = bookRepository.update(updatedBook)
                     

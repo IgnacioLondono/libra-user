@@ -67,7 +67,7 @@ class LoanRepository @Inject constructor(
             
             if (response.isSuccessful && response.body() != null) {
                 val loanDto = response.body()!!
-                val loanEntity = with(LoanMapper) { loanDto.toEntity() }
+                val loanEntity = LoanMapper.run { loanDto.toEntity() }
                 // SOLO SI ES EXITOSO: Actualizar estado en memoria
                 val currentLoans = _loans.value.toMutableList()
                 currentLoans.add(loanEntity)
@@ -93,7 +93,7 @@ class LoanRepository @Inject constructor(
             val response = loanApi.getUserLoans(userId.toString())
             if (response.isSuccessful && response.body() != null) {
                 val loansDto = response.body()!!
-                val loansEntity = loansDto.map { with(LoanMapper) { it.toEntity() } }
+                val loansEntity = loansDto.map { LoanMapper.run { it.toEntity() } }
                 // Actualizar estado en memoria (solo préstamos de este usuario)
                 val otherLoans = _loans.value.filter { it.userId != userId }
                 _loans.value = otherLoans + loansEntity
@@ -165,7 +165,7 @@ class LoanRepository @Inject constructor(
             
             if (response.isSuccessful && response.body() != null) {
                 val returnedLoanDto = response.body()!!
-                val returnedLoan = with(LoanMapper) { returnedLoanDto.toEntity() }
+                val returnedLoan = LoanMapper.run { returnedLoanDto.toEntity() }
                 // SOLO SI ES EXITOSO: Actualizar estado en memoria
                 val currentLoans = _loans.value.toMutableList()
                 val index = currentLoans.indexOfFirst { it.id == loanId }
@@ -197,7 +197,7 @@ class LoanRepository @Inject constructor(
             
             if (response.isSuccessful && response.body() != null) {
                 val extendedLoanDto = response.body()!!
-                val extendedLoan = with(LoanMapper) { extendedLoanDto.toEntity() }
+                val extendedLoan = LoanMapper.run { extendedLoanDto.toEntity() }
                 // SOLO SI ES EXITOSO: Actualizar estado en memoria
                 val currentLoans = _loans.value.toMutableList()
                 val index = currentLoans.indexOfFirst { it.id == loanId }

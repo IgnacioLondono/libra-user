@@ -529,14 +529,12 @@ class AdminDashboardViewModel @Inject constructor(
             
             if (loanResult.isSuccess) {
                 // Validar que book no sea null antes de usarlo
-                if (book == null) {
-                    return Result.failure(IllegalArgumentException("Libro no encontrado"))
-                }
+                val nonNullBook = book ?: return Result.failure(IllegalArgumentException("Libro no encontrado"))
                 
                 // SOLO SI EL PRÉSTAMO SE CREÓ EXITOSAMENTE: Actualizar disponibles del libro
-                val updatedBook = book.copy(
-                    disponibles = book.disponibles - 1,
-                    status = if (book.disponibles - 1 > 0) "Available" else "Loaned"
+                val updatedBook = nonNullBook.copy(
+                    disponibles = nonNullBook.disponibles - 1,
+                    status = if (nonNullBook.disponibles - 1 > 0) "Available" else "Loaned"
                 )
                 val bookUpdateResult = bookRepository.update(updatedBook)
                 
