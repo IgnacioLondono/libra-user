@@ -34,6 +34,7 @@ data class RegisterUiState(
     val phoneError: String? = null,
     val passError: String? = null,
     val confirmError: String? = null,
+    val profileImageError: String? = null, // Error de validación de imagen
     val isSubmitting: Boolean = false,
     val canSubmit: Boolean = false,
     val success: Boolean = false,
@@ -548,7 +549,13 @@ class MainViewModel @Inject constructor(
     }
 
     fun onRegisterProfileImageChange(uri: Uri?) {
-        _register.update { it.copy(profileImageUri = uri?.toString()) }
+        // Limpiar error anterior y actualizar URI
+        _register.update { 
+            it.copy(
+                profileImageUri = uri?.toString(),
+                profileImageError = null
+            ) 
+        }
     }
 
     fun onRegisterNameChange(value: String) {
@@ -614,24 +621,31 @@ class MainViewModel @Inject constructor(
             return
         }
         
-        // Validar imagen si está presente
-        val imageError = s.profileImageUri?.let { validateBase64Image(it) }
-        if (imageError != null) {
-            _register.update { it.copy(errorMsg = imageError) }
-            return
-        }
-        
         viewModelScope.launch {
-            _register.update { it.copy(isSubmitting = true, errorMsg = null, success = false) }
+            _register.update { it.copy(isSubmitting = true, errorMsg = null, profileImageError = null, success = false) }
             val result = try {
                 userRepository.register(s.name.trim(), s.email.trim(), s.phone.trim(), s.pass, s.profileImageUri)
             } catch (e: Exception) {
-                _register.update { it.copy(isSubmitting = false, errorMsg = e.message ?: "Error de registro") }
+                val errorMessage = e.message ?: "Error de registro"
+                // Si el error es sobre la imagen, mostrarlo en profileImageError
+                if (errorMessage.contains("imagen", ignoreCase = true) || errorMessage.contains("image", ignoreCase = true)) {
+                    _register.update { it.copy(isSubmitting = false, profileImageError = errorMessage) }
+                } else {
+                    _register.update { it.copy(isSubmitting = false, errorMsg = errorMessage) }
+                }
                 return@launch
             }
             _register.update {
                 if (result.isSuccess) it.copy(isSubmitting = false, success = true)
-                else it.copy(isSubmitting = false, errorMsg = result.exceptionOrNull()?.message)
+                else {
+                    val errorMessage = result.exceptionOrNull()?.message ?: "Error desconocido"
+                    // Si el error es sobre la imagen, mostrarlo en profileImageError
+                    if (errorMessage.contains("imagen", ignoreCase = true) || errorMessage.contains("image", ignoreCase = true)) {
+                        it.copy(isSubmitting = false, profileImageError = errorMessage)
+                    } else {
+                        it.copy(isSubmitting = false, errorMsg = errorMessage)
+                    }
+                }
             }
         }
     }

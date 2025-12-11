@@ -196,6 +196,16 @@ private fun RegisterContent(
             TextButton(onClick = onChoosePhotoClick) {
                 Text("Elegir foto")
             }
+            
+            // Mostrar error de imagen si existe
+            state.profileImageError?.let {
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    it,
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.labelSmall
+                )
+            }
 
             Spacer(Modifier.height(16.dp))
 

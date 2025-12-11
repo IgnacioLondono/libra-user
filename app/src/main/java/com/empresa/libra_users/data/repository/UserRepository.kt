@@ -126,31 +126,33 @@ class UserRepository @Inject constructor(
             return Result.failure(IllegalArgumentException("Este correo no se puede registrar."))
         }
         
-        // Validar imagen si está presente
-        val imageError = profileImageUri?.let { validateBase64Image(it) }
-        if (imageError != null) {
-            return Result.failure(IllegalArgumentException(imageError))
-        }
-        
         return try {
             // Convertir imagen a Base64 si está presente
             val profileImageBase64 = profileImageUri?.let { uriString ->
                 try {
                     val uri = Uri.parse(uriString)
-                    ImageUtils.uriToBase64(
+                    val base64 = ImageUtils.uriToBase64(
                         context = context,
                         uri = uri,
                         maxWidth = 800,
                         maxHeight = 800,
                         quality = 85
-                    ) ?: run {
-                        // Si falla la conversión, continuar sin imagen
-                        null
+                    )
+                    
+                    if (base64 == null) {
+                        return Result.failure(IllegalArgumentException("No se pudo cargar la imagen. Por favor, intenta con otra imagen."))
                     }
+                    
+                    // Validar el Base64 resultante
+                    val imageError = validateBase64Image(base64)
+                    if (imageError != null) {
+                        return Result.failure(IllegalArgumentException(imageError))
+                    }
+                    
+                    base64
                 } catch (e: Exception) {
-                    // Si hay error al convertir, continuar sin imagen
-                    e.printStackTrace()
-                    null
+                    // Si hay error al convertir, retornar error
+                    return Result.failure(IllegalArgumentException("Error al procesar la imagen: ${e.message ?: "Formato de imagen inválido"}"))
                 }
             }
             
