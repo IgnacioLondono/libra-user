@@ -533,8 +533,8 @@ class AdminDashboardViewModel @Inject constructor(
             if (loanResult.isSuccess) {
                 // SOLO SI EL PRÉSTAMO SE CREÓ EXITOSAMENTE: Actualizar disponibles del libro
                 val updatedBook = nonNullBook.copy(
-                    disponibles = nonNullBook.disponibles - 1,
-                    status = if (nonNullBook.disponibles - 1 > 0) "Available" else "Loaned"
+                    disponibles = (nonNullBook.disponibles - 1).coerceAtLeast(0),
+                    status = if ((nonNullBook.disponibles - 1) > 0) "Available" else "Loaned"
                 )
                 val bookUpdateResult = bookRepository.update(updatedBook)
                 
