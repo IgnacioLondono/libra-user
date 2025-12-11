@@ -8,9 +8,9 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material3.*
-import androidx.compose.material3.pulltorefresh.PullRefreshIndicator
-import androidx.compose.material3.pulltorefresh.pullRefresh
-import androidx.compose.material3.pulltorefresh.rememberPullRefreshState
+import androidx.compose.material3.pullrefresh.PullRefreshIndicator
+import androidx.compose.material3.pullrefresh.pullRefresh
+import androidx.compose.material3.pullrefresh.rememberPullRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment

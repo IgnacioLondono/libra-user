@@ -11,9 +11,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.ShoppingCartCheckout
 import androidx.compose.material3.*
-import androidx.compose.material3.pulltorefresh.PullRefreshIndicator
-import androidx.compose.material3.pulltorefresh.pullRefresh
-import androidx.compose.material3.pulltorefresh.rememberPullRefreshState
+import androidx.compose.material3.pullrefresh.PullRefreshIndicator
+import androidx.compose.material3.pullrefresh.pullRefresh
+import androidx.compose.material3.pullrefresh.rememberPullRefreshState
 import androidx.compose.runtime.*
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment

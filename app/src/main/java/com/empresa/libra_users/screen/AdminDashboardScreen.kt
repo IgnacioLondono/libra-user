@@ -47,9 +47,9 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.pulltorefresh.PullRefreshIndicator
-import androidx.compose.material3.pulltorefresh.pullRefresh
-import androidx.compose.material3.pulltorefresh.rememberPullRefreshState
+import androidx.compose.material3.pullrefresh.PullRefreshIndicator
+import androidx.compose.material3.pullrefresh.pullRefresh
+import androidx.compose.material3.pullrefresh.rememberPullRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
