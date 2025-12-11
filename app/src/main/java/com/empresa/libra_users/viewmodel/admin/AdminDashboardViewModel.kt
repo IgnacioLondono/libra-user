@@ -514,6 +514,14 @@ class AdminDashboardViewModel @Inject constructor(
             return Result.failure(IllegalArgumentException(bookError))
         }
         
+        // Validar que book no sea null
+        if (book == null) {
+            return Result.failure(IllegalArgumentException("Libro no encontrado"))
+        }
+        
+        // Ahora book es no-null, podemos usarlo directamente
+        val nonNullBook = book
+        
         return try {
 
             // PRIMERO: Crear el préstamo en la base de datos del microservicio
@@ -528,9 +536,6 @@ class AdminDashboardViewModel @Inject constructor(
             val loanResult = loanRepository.insert(newLoan)
             
             if (loanResult.isSuccess) {
-                // Validar que book no sea null antes de usarlo
-                val nonNullBook = book ?: return Result.failure(IllegalArgumentException("Libro no encontrado"))
-                
                 // SOLO SI EL PRÉSTAMO SE CREÓ EXITOSAMENTE: Actualizar disponibles del libro
                 val updatedBook = nonNullBook.copy(
                     disponibles = nonNullBook.disponibles - 1,

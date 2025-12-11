@@ -332,10 +332,13 @@ class MainViewModel @Inject constructor(
             }
             
             // Validar que bookToLoan no sea null
-            val nonNullBook = bookToLoan ?: run {
+            if (bookToLoan == null) {
                 _home.update { it.copy(errorMsg = "Libro no encontrado") }
                 return@launch
             }
+            
+            // Ahora bookToLoan es no-null, podemos usarlo directamente
+            val book = bookToLoan
 
             try {
                 val loanDate = LocalDate.now()
@@ -356,9 +359,9 @@ class MainViewModel @Inject constructor(
                 
                 if (loanResult.isSuccess) {
                     // SOLO SI EL PRÉSTAMO SE CREÓ EXITOSAMENTE: Actualizar el libro
-                    val updatedBook = nonNullBook.copy(
+                    val updatedBook = book.copy(
                         status = "Loaned",
-                        disponibles = (nonNullBook.disponibles - 1).coerceAtLeast(0)
+                        disponibles = (book.disponibles - 1).coerceAtLeast(0)
                     )
                     val bookUpdateResult = bookRepository.update(updatedBook)
                     
