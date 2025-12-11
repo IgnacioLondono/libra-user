@@ -9,6 +9,9 @@ import androidx.compose.foundation.lazy.grid.LazyHorizontalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullRefreshIndicator
+import androidx.compose.material3.pulltorefresh.pullRefresh
+import androidx.compose.material3.pulltorefresh.rememberPullRefreshState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -39,6 +42,13 @@ fun HomeScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     var hasShownWelcome by remember { mutableStateOf(false) }
+    
+    // Pull to refresh
+    val isRefreshing = homeState.isLoading
+    val pullRefreshState = rememberPullRefreshState(
+        refreshing = isRefreshing,
+        onRefresh = { vm.refreshHome() }
+    )
     
     // Mostrar mensaje de bienvenida solo una vez cuando el usuario se carga
     LaunchedEffect(user?.id) {
@@ -74,17 +84,28 @@ fun HomeScreen(
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { paddingValues ->
-        Surface(
-            modifier = Modifier.fillMaxSize(),
-            color = Color.Transparent
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .pullRefresh(pullRefreshState)
         ) {
-            LazyColumn(
-                contentPadding = PaddingValues(vertical = 16.dp),
-                modifier = Modifier.padding(paddingValues)
+            Surface(
+                modifier = Modifier.fillMaxSize(),
+                color = Color.Transparent
             ) {
-                item { FreeBooksSection(books = freeBooks, onBookClick = { book -> selectedBook = book }, purpleColor = purpleColor) }
-                item { TrendingBooksSection(books = trendingBooks, onBookClick = { book -> selectedBook = book }, purpleColor = purpleColor) }
+                LazyColumn(
+                    contentPadding = PaddingValues(vertical = 16.dp),
+                    modifier = Modifier.padding(paddingValues)
+                ) {
+                    item { FreeBooksSection(books = freeBooks, onBookClick = { book -> selectedBook = book }, purpleColor = purpleColor) }
+                    item { TrendingBooksSection(books = trendingBooks, onBookClick = { book -> selectedBook = book }, purpleColor = purpleColor) }
+                }
             }
+            PullRefreshIndicator(
+                refreshing = isRefreshing,
+                state = pullRefreshState,
+                modifier = Modifier.align(Alignment.TopCenter)
+            )
         }
     }
 }

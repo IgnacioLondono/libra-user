@@ -11,6 +11,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.ShoppingCartCheckout
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullRefreshIndicator
+import androidx.compose.material3.pulltorefresh.pullRefresh
+import androidx.compose.material3.pulltorefresh.rememberPullRefreshState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -38,12 +41,31 @@ fun CartScreen(vm: MainViewModel, navController: NavController) {
     var showPaymentDialog by remember { mutableStateOf(false) }
     var showMultipleLoansDialog by remember { mutableStateOf(false) }
     var selectedCartItemForPayment by remember { mutableStateOf<CartItem?>(null) }
+    var isRefreshing by remember { mutableStateOf(false) }
     
     val isMultipleLoans = cartItems.size > 1
     val totalPrice = cartItems.sumOf { it.price }
+    
+    // Pull to refresh
+    val pullRefreshState = rememberPullRefreshState(
+        refreshing = isRefreshing,
+        onRefresh = {
+            isRefreshing = true
+            vm.refreshCart()
+            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
+                kotlinx.coroutines.delay(500)
+                isRefreshing = false
+            }
+        }
+    )
 
     if (cartItems.isEmpty()) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .pullRefresh(pullRefreshState),
+            contentAlignment = Alignment.Center
+        ) {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -60,6 +82,11 @@ fun CartScreen(vm: MainViewModel, navController: NavController) {
                     color = MaterialTheme.colorScheme.onSurface
                 )
             }
+            PullRefreshIndicator(
+                refreshing = isRefreshing,
+                state = pullRefreshState,
+                modifier = Modifier.align(Alignment.TopCenter)
+            )
         }
     } else {
         Scaffold(
@@ -116,11 +143,16 @@ fun CartScreen(vm: MainViewModel, navController: NavController) {
                 }
             }
         ) { paddingValues ->
-            Column(
+            Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(paddingValues)
+                    .pullRefresh(pullRefreshState)
             ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues)
+                ) {
                 if (isMultipleLoans) {
                     // Resumen cuando hay más de un préstamo
                     Card(
@@ -180,6 +212,11 @@ fun CartScreen(vm: MainViewModel, navController: NavController) {
                         )
                     }
                 }
+                PullRefreshIndicator(
+                    refreshing = isRefreshing,
+                    state = pullRefreshState,
+                    modifier = Modifier.align(Alignment.TopCenter)
+                )
             }
         }
         

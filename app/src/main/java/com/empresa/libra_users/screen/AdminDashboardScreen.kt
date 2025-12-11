@@ -47,6 +47,9 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.pulltorefresh.PullRefreshIndicator
+import androidx.compose.material3.pulltorefresh.pullRefresh
+import androidx.compose.material3.pulltorefresh.rememberPullRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -238,13 +241,25 @@ fun AdminHomeScreen(
 ) {
     val dashboardUiState by viewModel.dashboardUiState.collectAsStateWithLifecycle()
     val reportsUiState by viewModel.reportsUiState.collectAsStateWithLifecycle()
+    
+    // Pull to refresh
+    val isRefreshing = dashboardUiState.isLoading
+    val pullRefreshState = rememberPullRefreshState(
+        refreshing = isRefreshing,
+        onRefresh = { viewModel.refreshDashboard() }
+    )
 
-    Column(
+    Box(
         modifier = modifier
             .fillMaxSize()
-            .padding(16.dp)
-            .verticalScroll(rememberScrollState())
+            .pullRefresh(pullRefreshState)
     ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp)
+                .verticalScroll(rememberScrollState())
+        ) {
         // Estado de carga
         if (dashboardUiState.isLoading) {
             LoadingState()
@@ -260,6 +275,11 @@ fun AdminHomeScreen(
                 reportsUiState = reportsUiState
             )
         }
+        PullRefreshIndicator(
+            refreshing = isRefreshing,
+            state = pullRefreshState,
+            modifier = Modifier.align(Alignment.TopCenter)
+        )
     }
 }
 

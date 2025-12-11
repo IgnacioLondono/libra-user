@@ -650,4 +650,77 @@ class AdminDashboardViewModel @Inject constructor(
             Result.failure(e)
         }
     }
+
+    /**
+     * Función para refrescar el dashboard completo
+     */
+    fun refreshDashboard() {
+        loadDashboardTotals()
+        loadBooks()
+        loadUsers()
+        loadLoanDetails()
+        loadReports()
+    }
+
+    /**
+     * Función para refrescar solo los libros
+     */
+    fun refreshBooks() {
+        viewModelScope.launch {
+            _booksUiState.update { it.copy(isLoading = true) }
+            try {
+                bookRepository.loadAllBooks()
+                loadBooks()
+            } catch (e: Exception) {
+                _booksUiState.update { it.copy(isLoading = false, error = e.message) }
+            }
+        }
+    }
+
+    /**
+     * Función para refrescar solo los usuarios
+     */
+    fun refreshUsers() {
+        viewModelScope.launch {
+            _usersUiState.update { it.copy(isLoading = true) }
+            try {
+                userRepository.loadAllUsers()
+                loadUsers()
+            } catch (e: Exception) {
+                _usersUiState.update { it.copy(isLoading = false, error = e.message) }
+            }
+        }
+    }
+
+    /**
+     * Función para refrescar solo los préstamos
+     */
+    fun refreshLoans() {
+        viewModelScope.launch {
+            _loansUiState.update { it.copy(isLoading = true) }
+            try {
+                loanRepository.loadAllLoans()
+                loadLoanDetails()
+            } catch (e: Exception) {
+                _loansUiState.update { it.copy(isLoading = false, error = e.message) }
+            }
+        }
+    }
+
+    /**
+     * Función para refrescar solo los reportes
+     */
+    fun refreshReports() {
+        viewModelScope.launch {
+            _reportsUiState.update { it.copy(isLoading = true) }
+            try {
+                bookRepository.loadAllBooks()
+                userRepository.loadAllUsers()
+                loanRepository.loadAllLoans()
+                loadReports()
+            } catch (e: Exception) {
+                _reportsUiState.update { it.copy(isLoading = false, error = e.message) }
+            }
+        }
+    }
 }

@@ -234,6 +234,62 @@ class MainViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Función para refrescar todos los datos de la pantalla principal
+     */
+    fun refreshHome() {
+        viewModelScope.launch {
+            _home.update { it.copy(isLoading = true, errorMsg = null) }
+            try {
+                // Forzar recarga desde el API
+                bookRepository.loadAllBooks()
+                loadCategorizedBooks()
+            } catch (e: Exception) {
+                _home.update { it.copy(isLoading = false, errorMsg = "Error al refrescar: ${e.message}") }
+            }
+        }
+    }
+
+    /**
+     * Función para refrescar el catálogo
+     */
+    fun refreshCatalog() {
+        refreshHome()
+    }
+
+    /**
+     * Función para refrescar la búsqueda
+     */
+    fun refreshSearch() {
+        viewModelScope.launch {
+            _search.update { it.copy(isLoading = true, errorMsg = null) }
+            try {
+                bookRepository.loadAllBooks()
+                // Si hay una búsqueda activa, volver a ejecutarla
+                if (_search.value.query.isNotBlank()) {
+                    performSearch()
+                } else {
+                    _search.update { it.copy(isLoading = false) }
+                }
+            } catch (e: Exception) {
+                _search.update { it.copy(isLoading = false, errorMsg = "Error al refrescar: ${e.message}") }
+            }
+        }
+    }
+
+    /**
+     * Función para refrescar el carrito (recargar disponibilidad de libros)
+     */
+    fun refreshCart() {
+        viewModelScope.launch {
+            try {
+                bookRepository.loadAllBooks()
+            } catch (e: Exception) {
+                // Error silencioso
+            }
+        }
+    }
+
     fun loadActiveLoans() {
         _user.value?.let { user ->
             viewModelScope.launch {

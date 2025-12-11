@@ -7,6 +7,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullRefreshIndicator
+import androidx.compose.material3.pulltorefresh.pullRefresh
+import androidx.compose.material3.pulltorefresh.rememberPullRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -27,26 +30,44 @@ fun SearchScreen(
     // onBookClick: (Long) -> Unit
 ) {
     val state by vm.search.collectAsStateWithLifecycle()
+    
+    // Pull to refresh
+    val isRefreshing = state.isLoading
+    val pullRefreshState = rememberPullRefreshState(
+        refreshing = isRefreshing,
+        onRefresh = { vm.refreshSearch() }
+    )
 
-    Column(modifier = Modifier.fillMaxSize()) {
-        // Campo de Búsqueda
-        SearchBar(
-            query = state.query,
-            onQueryChange = vm::onSearchQueryChange,
-            onSearch = vm::performSearch,
-            modifier = Modifier.padding(16.dp)
-        )
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .pullRefresh(pullRefreshState)
+    ) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            // Campo de Búsqueda
+            SearchBar(
+                query = state.query,
+                onQueryChange = vm::onSearchQueryChange,
+                onSearch = vm::performSearch,
+                modifier = Modifier.padding(16.dp)
+            )
 
-        // Indicador de Carga
-        if (state.isLoading) {
-            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+            // Indicador de Carga
+            if (state.isLoading) {
+                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+            }
+
+            // Lista de Resultados
+            SearchResultList(
+                results = state.results,
+                initialSearchPerformed = state.initialSearchPerformed,
+                errorMsg = state.errorMsg
+            )
         }
-
-        // Lista de Resultados
-        SearchResultList(
-            results = state.results,
-            initialSearchPerformed = state.initialSearchPerformed,
-            errorMsg = state.errorMsg
+        PullRefreshIndicator(
+            refreshing = isRefreshing,
+            state = pullRefreshState,
+            modifier = Modifier.align(Alignment.TopCenter)
         )
     }
 }
