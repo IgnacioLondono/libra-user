@@ -359,7 +359,7 @@ class MainViewModel @Inject constructor(
                 val loanResult = loanRepository.insert(newLoan)
                 
                 if (loanResult.isSuccess) {
-                    // SOLO SI EL PRÉSTAMO SE CREÓ EXITOSAMENTE: Actualizar el libro
+                    // SOLO SI EL PRÉSTAMO SE CREÓ EXITOSAMENTE: Actualizar el libro usando la variable no-null 'book'
                     val updatedBook = book.copy(
                         status = "Loaned",
                         disponibles = (book.disponibles - 1).coerceAtLeast(0)
