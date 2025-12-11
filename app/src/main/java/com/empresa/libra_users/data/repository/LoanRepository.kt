@@ -3,7 +3,7 @@ package com.empresa.libra_users.data.repository
 import com.empresa.libra_users.data.local.user.LoanEntity
 import com.empresa.libra_users.data.remote.dto.CreateLoanRequestDto
 import com.empresa.libra_users.data.remote.dto.LoanApi
-import com.empresa.libra_users.data.remote.mapper.toEntity
+import com.empresa.libra_users.data.remote.mapper.LoanMapper
 import com.empresa.libra_users.domain.validation.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -47,18 +47,27 @@ class LoanRepository @Inject constructor(
         }
         
         return try {
+            // Calcular días de préstamo desde las fechas
+            val loanDays = try {
+                val formatter = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd")
+                val startDate = java.time.LocalDate.parse(loan.loanDate, formatter)
+                val endDate = java.time.LocalDate.parse(loan.dueDate, formatter)
+                java.time.temporal.ChronoUnit.DAYS.between(startDate, endDate).toInt()
+            } catch (e: Exception) {
+                7 // Default a 7 días si hay error al parsear
+            }
+            
             // PRIMERO: Intentar crear en el API/base de datos
             val request = CreateLoanRequestDto(
-                userId = loan.userId,
-                bookId = loan.bookId,
-                loanDate = loan.loanDate,
-                dueDate = loan.dueDate
+                userId = loan.userId.toString(),
+                bookId = loan.bookId.toString(),
+                loanDays = loanDays
             )
             val response = loanApi.createLoan(request)
             
             if (response.isSuccessful && response.body() != null) {
                 val loanDto = response.body()!!
-                val loanEntity = loanDto.toEntity()
+                val loanEntity = with(LoanMapper) { loanDto.toEntity() }
                 // SOLO SI ES EXITOSO: Actualizar estado en memoria
                 val currentLoans = _loans.value.toMutableList()
                 currentLoans.add(loanEntity)
@@ -84,7 +93,7 @@ class LoanRepository @Inject constructor(
             val response = loanApi.getUserLoans(userId.toString())
             if (response.isSuccessful && response.body() != null) {
                 val loansDto = response.body()!!
-                val loansEntity = loansDto.map { it.toEntity() }
+                val loansEntity = loansDto.map { with(LoanMapper) { it.toEntity() } }
                 // Actualizar estado en memoria (solo préstamos de este usuario)
                 val otherLoans = _loans.value.filter { it.userId != userId }
                 _loans.value = otherLoans + loansEntity
@@ -156,7 +165,7 @@ class LoanRepository @Inject constructor(
             
             if (response.isSuccessful && response.body() != null) {
                 val returnedLoanDto = response.body()!!
-                val returnedLoan = returnedLoanDto.toEntity()
+                val returnedLoan = with(LoanMapper) { returnedLoanDto.toEntity() }
                 // SOLO SI ES EXITOSO: Actualizar estado en memoria
                 val currentLoans = _loans.value.toMutableList()
                 val index = currentLoans.indexOfFirst { it.id == loanId }
@@ -188,7 +197,7 @@ class LoanRepository @Inject constructor(
             
             if (response.isSuccessful && response.body() != null) {
                 val extendedLoanDto = response.body()!!
-                val extendedLoan = extendedLoanDto.toEntity()
+                val extendedLoan = with(LoanMapper) { extendedLoanDto.toEntity() }
                 // SOLO SI ES EXITOSO: Actualizar estado en memoria
                 val currentLoans = _loans.value.toMutableList()
                 val index = currentLoans.indexOfFirst { it.id == loanId }

@@ -302,6 +302,12 @@ class MainViewModel @Inject constructor(
                 return@launch
             }
             
+            // Validar que userId no sea null
+            if (userId == null) {
+                _home.update { it.copy(errorMsg = "Usuario no autenticado") }
+                return@launch
+            }
+            
             // Validar días de préstamo
             val daysError = validateLoanDays(loanDays)
             if (daysError != null) {
@@ -322,6 +328,12 @@ class MainViewModel @Inject constructor(
             val bookError = validateBookAvailable(bookToLoan)
             if (bookError != null) {
                 _home.update { it.copy(errorMsg = bookError) }
+                return@launch
+            }
+            
+            // Validar que bookToLoan no sea null
+            if (bookToLoan == null) {
+                _home.update { it.copy(errorMsg = "Libro no encontrado") }
                 return@launch
             }
 
