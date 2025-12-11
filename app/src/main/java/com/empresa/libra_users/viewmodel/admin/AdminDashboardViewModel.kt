@@ -515,7 +515,10 @@ class AdminDashboardViewModel @Inject constructor(
         }
         
         // Validar que book no sea null y asignarlo a variable no-null
-        val nonNullBook: BookEntity = book ?: return Result.failure(IllegalArgumentException("Libro no encontrado"))
+        if (book == null) {
+            return Result.failure(IllegalArgumentException("Libro no encontrado"))
+        }
+        val nonNullBook: BookEntity = book
         
         return try {
 
@@ -532,9 +535,10 @@ class AdminDashboardViewModel @Inject constructor(
             
             if (loanResult.isSuccess) {
                 // SOLO SI EL PRÉSTAMO SE CREÓ EXITOSAMENTE: Actualizar disponibles del libro
+                val nuevosDisponibles = (nonNullBook.disponibles - 1).coerceAtLeast(0)
                 val updatedBook = nonNullBook.copy(
-                    disponibles = (nonNullBook.disponibles - 1).coerceAtLeast(0),
-                    status = if ((nonNullBook.disponibles - 1) > 0) "Available" else "Loaned"
+                    disponibles = nuevosDisponibles,
+                    status = if (nuevosDisponibles > 0) "Available" else "Loaned"
                 )
                 val bookUpdateResult = bookRepository.update(updatedBook)
                 
