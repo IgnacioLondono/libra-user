@@ -346,6 +346,7 @@ class MainViewModel @Inject constructor(
                 val dueDate = loanDate.plusDays(loanDays.toLong())
                 val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
 
+                // Crear el préstamo con userId no-null y bookId del parámetro
                 val newLoan = LoanEntity(
                     userId = nonNullUserId,
                     bookId = bookId,
