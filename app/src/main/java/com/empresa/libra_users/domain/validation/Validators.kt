@@ -153,8 +153,91 @@ fun validateLoanDates(fechaPrestamo: String, fechaDevolucion: String): String? {
         if (fechaP.isAfter(fechaD)) {
             return "La fecha de préstamo no puede ser posterior a la fecha de devolución"
         }
+        // Validar que la fecha de préstamo no sea en el pasado (opcional, pero recomendado)
+        val hoy = java.time.LocalDate.now()
+        if (fechaP.isBefore(hoy)) {
+            return "La fecha de préstamo no puede ser anterior a hoy"
+        }
         return null
     } catch (e: Exception) {
         return "Formato de fecha inválido"
     }
+}
+
+// Valida días de préstamo: debe ser entre 1 y 30 días
+fun validateLoanDays(days: Int): String? {
+    if (days < 1) return "El préstamo debe ser de al menos 1 día"
+    if (days > 30) return "El préstamo no puede exceder 30 días"
+    return null
+}
+
+// Valida que el usuario esté autenticado
+fun validateUserAuthenticated(userId: Long?): String? {
+    if (userId == null || userId <= 0) {
+        return "Debes estar autenticado para realizar esta acción"
+    }
+    return null
+}
+
+// Valida que el usuario tenga permisos de administrador
+fun validateAdminRole(userRole: String?): String? {
+    if (userRole != "admin") {
+        return "No tienes permisos de administrador para realizar esta acción"
+    }
+    return null
+}
+
+// Valida que el libro exista y esté disponible
+fun validateBookAvailable(book: com.empresa.libra_users.data.local.user.BookEntity?): String? {
+    if (book == null) {
+        return "El libro no existe"
+    }
+    if (book.status != "Available") {
+        return "El libro no está disponible para préstamo"
+    }
+    if (book.disponibles <= 0) {
+        return "No hay ejemplares disponibles de este libro"
+    }
+    return null
+}
+
+// Valida formato de imagen Base64 (básico)
+fun validateBase64Image(base64: String?): String? {
+    if (base64 == null) return null // Opcional
+    if (base64.isBlank()) return null // Opcional
+    
+    // Validar que comience con data:image o sea solo Base64
+    val isDataUri = base64.startsWith("data:image/")
+    val isBase64Only = base64.matches(Regex("^[A-Za-z0-9+/=]+$"))
+    
+    if (!isDataUri && !isBase64Only) {
+        return "Formato de imagen inválido"
+    }
+    
+    // Validar tamaño máximo (aproximado: 5MB en Base64 = ~6.7MB en texto)
+    if (base64.length > 6_700_000) {
+        return "La imagen es demasiado grande (máximo 5MB)"
+    }
+    
+    return null
+}
+
+// Valida que un ID sea válido
+fun validateId(id: Long?): String? {
+    if (id == null || id <= 0) {
+        return "ID inválido"
+    }
+    return null
+}
+
+// Valida que un ID de string sea válido
+fun validateIdString(id: String?): String? {
+    if (id.isNullOrBlank()) {
+        return "ID inválido"
+    }
+    val idLong = id.toLongOrNull()
+    if (idLong == null || idLong <= 0) {
+        return "ID inválido"
+    }
+    return null
 }

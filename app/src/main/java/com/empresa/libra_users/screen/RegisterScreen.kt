@@ -215,7 +215,7 @@ private fun RegisterContent(
             OutlinedTextField(
                 value = state.email,
                 onValueChange = onEmailChange,
-                label = { Text("Email") },
+                label = { Text("Correo electrónico") },
                 singleLine = true,
                 isError = state.emailError != null,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
@@ -305,7 +305,7 @@ private fun RegisterContent(
 
             Spacer(Modifier.height(12.dp))
             OutlinedButton(onClick = onGoLogin, modifier = Modifier.fillMaxWidth()) {
-                Text("Ir a Login")
+                Text("Ir a Iniciar Sesión")
             }
         }
     }

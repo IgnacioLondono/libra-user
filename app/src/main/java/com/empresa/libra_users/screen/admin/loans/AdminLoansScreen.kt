@@ -153,11 +153,11 @@ fun AdminLoansScreen(
 
 @Composable
 private fun LoanCard(loanDetails: LoanDetails, onMarkAsReturned: () -> Unit) {
-    val statusColor = when (loanDetails.loan.status) {
-        "Active" -> MaterialTheme.colorScheme.primary
-        "Overdue" -> MaterialTheme.colorScheme.error
-        "Returned" -> MaterialTheme.colorScheme.secondary
-        else -> MaterialTheme.colorScheme.onSurfaceVariant
+    val (statusText, statusColor) = when (loanDetails.loan.status) {
+        "Active" -> "Activo" to MaterialTheme.colorScheme.primary
+        "Overdue" -> "Vencido" to MaterialTheme.colorScheme.error
+        "Returned" -> "Devuelto" to MaterialTheme.colorScheme.secondary
+        else -> loanDetails.loan.status to MaterialTheme.colorScheme.onSurfaceVariant
     }
 
     Card(
@@ -224,7 +224,7 @@ private fun LoanCard(loanDetails: LoanDetails, onMarkAsReturned: () -> Unit) {
                         color = statusColor.copy(alpha = 0.2f)
                     ) {
                         Text(
-                            "Estado: ${loanDetails.loan.status}",
+                            "Estado: $statusText",
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),

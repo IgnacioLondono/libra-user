@@ -463,7 +463,7 @@ fun PaymentDialog(
                                                 cvvError = validateCvv(cvv)
                                             }
                                         },
-                                        label = { Text("CVV *", color = textColorVariant) },
+                                        label = { Text("Código de Seguridad *", color = textColorVariant) },
                                         placeholder = { Text("123", color = textColorVariant.copy(alpha = 0.5f)) },
                                         modifier = Modifier
                                             .weight(1f)

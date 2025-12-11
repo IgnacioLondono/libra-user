@@ -327,6 +327,22 @@ class AdminDashboardViewModel @Inject constructor(
      */
     fun deleteUser(user: UserEntity) = viewModelScope.launch {
         try {
+            // Validar ID del usuario
+            val idError = validateId(user.id)
+            if (idError != null) {
+                _usersUiState.update { it.copy(error = idError) }
+                return@launch
+            }
+            
+            // Verificar si el usuario tiene préstamos activos
+            val activeLoans = loanRepository.getLoansByUserAndStatus(user.id, "Active")
+            if (activeLoans.isNotEmpty()) {
+                _usersUiState.update { 
+                    it.copy(error = "No se puede eliminar el usuario porque tiene ${activeLoans.size} préstamo(s) activo(s)") 
+                }
+                return@launch
+            }
+            
             val result = userRepository.deleteUser(user)
             if (result.isFailure) {
                 _usersUiState.update { it.copy(error = result.exceptionOrNull()?.message ?: "Error al eliminar usuario") }
@@ -435,32 +451,70 @@ class AdminDashboardViewModel @Inject constructor(
     }
 
     fun deleteBook(book: BookEntity) = viewModelScope.launch {
-        bookRepository.delete(book)
+        try {
+            // Validar ID del libro
+            val idError = validateId(book.id)
+            if (idError != null) {
+                _booksUiState.update { it.copy(error = idError) }
+                return@launch
+            }
+            
+            // Verificar si el libro tiene préstamos activos
+            val activeLoansCount = bookRepository.countActiveLoansForBook(book.id)
+            if (activeLoansCount > 0) {
+                _booksUiState.update { 
+                    it.copy(error = "No se puede eliminar el libro porque tiene $activeLoansCount préstamo(s) activo(s)") 
+                }
+                return@launch
+            }
+            
+            val result = bookRepository.delete(book)
+            if (result.isFailure) {
+                _booksUiState.update { 
+                    it.copy(error = result.exceptionOrNull()?.message ?: "Error al eliminar libro") 
+                }
+            } else {
+                // Recargar libros para reflejar los cambios
+                loadBooks()
+            }
+        } catch (e: Exception) {
+            _booksUiState.update { it.copy(error = "Error al eliminar libro: ${e.message}") }
+        }
     }
 
     suspend fun createLoan(userId: Long, bookId: Long, fechaPrestamo: String, fechaDevolucion: String): Result<String> {
+        // Validar IDs
+        val userIdError = validateId(userId)
+        if (userIdError != null) {
+            return Result.failure(IllegalArgumentException(userIdError))
+        }
+        
+        val bookIdError = validateId(bookId)
+        if (bookIdError != null) {
+            return Result.failure(IllegalArgumentException(bookIdError))
+        }
+        
+        // Validar fechas
+        val dateError = validateLoanDates(fechaPrestamo, fechaDevolucion)
+        if (dateError != null) {
+            return Result.failure(IllegalArgumentException(dateError))
+        }
+
+        // Verificar si el usuario ya tiene un préstamo activo del mismo libro
+        if (loanRepository.hasActiveLoan(userId, bookId)) {
+            return Result.failure(IllegalArgumentException("El usuario ya tiene un préstamo activo de este libro."))
+        }
+
+        // Obtener el libro
+        val book = bookRepository.getBookById(bookId)
+        
+        // Validar disponibilidad del libro
+        val bookError = validateBookAvailable(book)
+        if (bookError != null) {
+            return Result.failure(IllegalArgumentException(bookError))
+        }
+        
         return try {
-            // Validar fechas
-            val dateError = validateLoanDates(fechaPrestamo, fechaDevolucion)
-            if (dateError != null) {
-                return Result.failure(IllegalArgumentException(dateError))
-            }
-
-            // Verificar si el usuario ya tiene un préstamo activo del mismo libro
-            if (loanRepository.hasActiveLoan(userId, bookId)) {
-                return Result.failure(IllegalArgumentException("El usuario ya tiene un préstamo activo de este libro."))
-            }
-
-            // Obtener el libro
-            val book = bookRepository.getBookById(bookId)
-            if (book == null) {
-                return Result.failure(IllegalArgumentException("Libro no encontrado."))
-            }
-
-            // Verificar disponibilidad
-            if (book.disponibles <= 0) {
-                return Result.failure(IllegalArgumentException("No hay ejemplares disponibles de este libro."))
-            }
 
             // PRIMERO: Crear el préstamo en la base de datos del microservicio
             val newLoan = LoanEntity(

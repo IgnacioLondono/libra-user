@@ -349,3 +349,5 @@ El archivo `seed-data-for-microservices.json` contiene todos los datos de ejempl
 
 **IMPORTANTE**: Todos los cambios deben garantizar que las operaciones se realicen **PRIMERO en la base de datos del microservicio**, y solo retornar éxito si la operación en la BD fue exitosa. La app Android depende completamente de estos endpoints para funcionar correctamente.
 
+
+

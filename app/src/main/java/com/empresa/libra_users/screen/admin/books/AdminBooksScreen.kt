@@ -475,7 +475,7 @@ private fun BookDetailsDialog(
                         style = MaterialTheme.typography.bodyMedium
                     )
                     Text("Año: ${book.anio}", style = MaterialTheme.typography.bodyMedium)
-                    Text("Stock: ${book.stock}", style = MaterialTheme.typography.bodyMedium)
+                    Text("Inventario: ${book.stock}", style = MaterialTheme.typography.bodyMedium)
                     Text(
                         "Disponibles: ${book.disponibles}",
                         style = MaterialTheme.typography.bodyMedium
@@ -716,7 +716,7 @@ private fun AddBookDialog(
                 OutlinedTextField(
                     value = stock,
                     onValueChange = { stock = it },
-                    label = { Text("Stock*") },
+                    label = { Text("Inventario*") },
                     isError = stockError != null,
                     supportingText = { stockError?.let { Text(it) } },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
@@ -1026,7 +1026,7 @@ private fun EditBookDialog(
                 OutlinedTextField(
                     value = stock,
                     onValueChange = { stock = it },
-                    label = { Text("Stock*") },
+                    label = { Text("Inventario*") },
                     isError = stockError != null,
                     supportingText = { stockError?.let { Text(it) } },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),

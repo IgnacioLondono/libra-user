@@ -4,6 +4,7 @@ import com.empresa.libra_users.data.local.user.BookEntity
 import com.empresa.libra_users.data.remote.dto.BookApi
 import com.empresa.libra_users.data.remote.mapper.toDto
 import com.empresa.libra_users.data.remote.mapper.toEntity
+import com.empresa.libra_users.domain.validation.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -80,6 +81,52 @@ class BookRepository @Inject constructor(
      * Solo actualiza el estado en memoria si la operación en el API es exitosa.
      */
     suspend fun insert(book: BookEntity): Result<Long> {
+        // Validaciones antes de llamar al API
+        val titleError = validateBookTitle(book.title)
+        if (titleError != null) {
+            return Result.failure(IllegalArgumentException(titleError))
+        }
+        
+        val authorError = validateBookAuthor(book.author)
+        if (authorError != null) {
+            return Result.failure(IllegalArgumentException(authorError))
+        }
+        
+        val categoriaError = validateBookCategory(book.categoria)
+        if (categoriaError != null) {
+            return Result.failure(IllegalArgumentException(categoriaError))
+        }
+        
+        val isbnError = validateISBN(book.isbn)
+        if (isbnError != null) {
+            return Result.failure(IllegalArgumentException(isbnError))
+        }
+        
+        val publisherError = validateBookPublisher(book.publisher)
+        if (publisherError != null) {
+            return Result.failure(IllegalArgumentException(publisherError))
+        }
+        
+        val anioError = validateBookYear(book.anio)
+        if (anioError != null) {
+            return Result.failure(IllegalArgumentException(anioError))
+        }
+        
+        val stockError = validateStock(book.stock)
+        if (stockError != null) {
+            return Result.failure(IllegalArgumentException(stockError))
+        }
+        
+        val disponiblesError = validateDisponibles(book.disponibles, book.stock)
+        if (disponiblesError != null) {
+            return Result.failure(IllegalArgumentException(disponiblesError))
+        }
+        
+        val descripcionError = validateBookDescription(book.descripcion ?: "")
+        if (descripcionError != null) {
+            return Result.failure(IllegalArgumentException(descripcionError))
+        }
+        
         return try {
             // PRIMERO: Intentar crear en el API/base de datos
             val bookDto = book.toDto()
@@ -108,6 +155,57 @@ class BookRepository @Inject constructor(
      * Solo actualiza el estado en memoria si la operación en el API es exitosa.
      */
     suspend fun update(book: BookEntity): Result<Unit> {
+        // Validaciones antes de llamar al API
+        val idError = validateId(book.id)
+        if (idError != null) {
+            return Result.failure(IllegalArgumentException(idError))
+        }
+        
+        val titleError = validateBookTitle(book.title)
+        if (titleError != null) {
+            return Result.failure(IllegalArgumentException(titleError))
+        }
+        
+        val authorError = validateBookAuthor(book.author)
+        if (authorError != null) {
+            return Result.failure(IllegalArgumentException(authorError))
+        }
+        
+        val categoriaError = validateBookCategory(book.categoria)
+        if (categoriaError != null) {
+            return Result.failure(IllegalArgumentException(categoriaError))
+        }
+        
+        val isbnError = validateISBN(book.isbn)
+        if (isbnError != null) {
+            return Result.failure(IllegalArgumentException(isbnError))
+        }
+        
+        val publisherError = validateBookPublisher(book.publisher)
+        if (publisherError != null) {
+            return Result.failure(IllegalArgumentException(publisherError))
+        }
+        
+        val anioError = validateBookYear(book.anio)
+        if (anioError != null) {
+            return Result.failure(IllegalArgumentException(anioError))
+        }
+        
+        val stockError = validateStock(book.stock)
+        if (stockError != null) {
+            return Result.failure(IllegalArgumentException(stockError))
+        }
+        
+        val disponiblesError = validateDisponibles(book.disponibles, book.stock)
+        if (disponiblesError != null) {
+            return Result.failure(IllegalArgumentException(disponiblesError))
+        }
+        
+        val descripcionError = validateBookDescription(book.descripcion ?: "")
+        if (descripcionError != null) {
+            return Result.failure(IllegalArgumentException(descripcionError))
+        }
+        
         return try {
             if (book.id > 0) {
                 // PRIMERO: Intentar actualizar en el API/base de datos
@@ -140,6 +238,12 @@ class BookRepository @Inject constructor(
      * Solo actualiza el estado en memoria si la operación en el API es exitosa.
      */
     suspend fun delete(book: BookEntity): Result<Unit> {
+        // Validaciones antes de llamar al API
+        val idError = validateId(book.id)
+        if (idError != null) {
+            return Result.failure(IllegalArgumentException(idError))
+        }
+        
         return try {
             if (book.id > 0) {
                 // PRIMERO: Intentar eliminar en el API/base de datos

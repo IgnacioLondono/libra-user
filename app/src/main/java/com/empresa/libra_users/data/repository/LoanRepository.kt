@@ -4,6 +4,7 @@ import com.empresa.libra_users.data.local.user.LoanEntity
 import com.empresa.libra_users.data.remote.dto.CreateLoanRequestDto
 import com.empresa.libra_users.data.remote.dto.LoanApi
 import com.empresa.libra_users.data.remote.mapper.toEntity
+import com.empresa.libra_users.domain.validation.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -29,6 +30,22 @@ class LoanRepository @Inject constructor(
      * Solo actualiza el estado en memoria si la operación en el API es exitosa.
      */
     suspend fun insert(loan: LoanEntity): Result<Long> {
+        // Validaciones antes de llamar al API
+        val userIdError = validateId(loan.userId)
+        if (userIdError != null) {
+            return Result.failure(IllegalArgumentException(userIdError))
+        }
+        
+        val bookIdError = validateId(loan.bookId)
+        if (bookIdError != null) {
+            return Result.failure(IllegalArgumentException(bookIdError))
+        }
+        
+        val dateError = validateLoanDates(loan.loanDate, loan.dueDate)
+        if (dateError != null) {
+            return Result.failure(IllegalArgumentException(dateError))
+        }
+        
         return try {
             // PRIMERO: Intentar crear en el API/base de datos
             val request = CreateLoanRequestDto(

@@ -9,6 +9,7 @@ import com.empresa.libra_users.data.remote.dto.RegisterRequestDto
 import com.empresa.libra_users.data.remote.dto.UpdateUserRequestDto
 import com.empresa.libra_users.data.remote.dto.UserApi
 import com.empresa.libra_users.data.remote.mapper.toEntity
+import com.empresa.libra_users.domain.validation.*
 import com.empresa.libra_users.util.ImageUtils
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -31,6 +32,16 @@ class UserRepository @Inject constructor(
     val users: StateFlow<List<UserEntity>> = _users.asStateFlow()
     
     suspend fun login(email: String, pass: String): Result<String> {
+        // Validaciones antes de llamar al API
+        val emailError = validateEmail(email.trim())
+        if (emailError != null) {
+            return Result.failure(IllegalArgumentException(emailError))
+        }
+        
+        if (pass.isBlank()) {
+            return Result.failure(IllegalArgumentException("La contraseña es obligatoria"))
+        }
+        
         // Caso especial para admin
         if (email.equals("admin123@gmail.com", ignoreCase = true) && pass == "admin12345678") {
             return Result.success("ADMIN")
@@ -90,8 +101,35 @@ class UserRepository @Inject constructor(
         pass: String, 
         profileImageUri: String?
     ): Result<Long> {
+        // Validaciones antes de llamar al API
+        val nameError = validateNameLettersOnly(name.trim())
+        if (nameError != null) {
+            return Result.failure(IllegalArgumentException(nameError))
+        }
+        
+        val emailError = validateEmail(email.trim())
+        if (emailError != null) {
+            return Result.failure(IllegalArgumentException(emailError))
+        }
+        
+        val phoneError = validatePhoneDigitsOnly(phone.trim())
+        if (phoneError != null) {
+            return Result.failure(IllegalArgumentException(phoneError))
+        }
+        
+        val passError = validateStrongPassword(pass)
+        if (passError != null) {
+            return Result.failure(IllegalArgumentException(passError))
+        }
+        
         if (email.equals("admin123@gmail.com", ignoreCase = true)) {
             return Result.failure(IllegalArgumentException("Este correo no se puede registrar."))
+        }
+        
+        // Validar imagen si está presente
+        val imageError = profileImageUri?.let { validateBase64Image(it) }
+        if (imageError != null) {
+            return Result.failure(IllegalArgumentException(imageError))
         }
         
         return try {
@@ -227,6 +265,33 @@ class UserRepository @Inject constructor(
      * @param newProfileImageUri Uri de la nueva imagen de perfil (opcional, si es diferente a la actual)
      */
     suspend fun updateUser(user: UserEntity, newProfileImageUri: String? = null): Result<Unit> {
+        // Validaciones antes de llamar al API
+        val idError = validateId(user.id)
+        if (idError != null) {
+            return Result.failure(IllegalArgumentException(idError))
+        }
+        
+        val nameError = validateNameLettersOnly(user.name?.trim() ?: "")
+        if (nameError != null) {
+            return Result.failure(IllegalArgumentException(nameError))
+        }
+        
+        val emailError = validateEmail(user.email?.trim() ?: "")
+        if (emailError != null) {
+            return Result.failure(IllegalArgumentException(emailError))
+        }
+        
+        val phoneError = user.phone?.let { if (it.isNotBlank()) validatePhoneDigitsOnly(it.trim()) else null }
+        if (phoneError != null) {
+            return Result.failure(IllegalArgumentException(phoneError))
+        }
+        
+        // Validar imagen si está presente
+        val imageError = newProfileImageUri?.let { validateBase64Image(it) }
+        if (imageError != null) {
+            return Result.failure(IllegalArgumentException(imageError))
+        }
+        
         return try {
             if (user.id > 0) {
                 // Convertir nueva imagen a Base64 si se proporciona un Uri nuevo
@@ -298,6 +363,12 @@ class UserRepository @Inject constructor(
      * Solo actualiza el estado en memoria si la operación en el API es exitosa.
      */
     suspend fun deleteUser(user: UserEntity): Result<Unit> {
+        // Validaciones antes de llamar al API
+        val idError = validateId(user.id)
+        if (idError != null) {
+            return Result.failure(IllegalArgumentException(idError))
+        }
+        
         return try {
             if (user.id > 0) {
                 // PRIMERO: Intentar eliminar en el API/base de datos

@@ -319,10 +319,10 @@ private fun UserDetailsDialog(
                             )
                         }
                         
-                        // Email (solo lectura)
+                        // Correo electrónico (solo lectura)
                         Column {
                             Text(
-                                "Email",
+                                "Correo electrónico",
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )

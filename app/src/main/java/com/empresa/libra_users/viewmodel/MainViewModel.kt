@@ -11,6 +11,7 @@ import com.empresa.libra_users.data.repository.BookRepository
 import com.empresa.libra_users.data.repository.LoanRepository
 import com.empresa.libra_users.data.repository.NotificationRepository
 import com.empresa.libra_users.data.repository.UserRepository
+import com.empresa.libra_users.domain.validation.*
 import com.empresa.libra_users.ui.state.LoginUiState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
@@ -293,11 +294,34 @@ class MainViewModel @Inject constructor(
 
     fun registerLoan(bookId: Long, loanDays: Int) {
         viewModelScope.launch {
-            val userId = _user.value?.id ?: return@launch
+            // Validar usuario autenticado
+            val userId = _user.value?.id
+            val authError = validateUserAuthenticated(userId)
+            if (authError != null) {
+                _home.update { it.copy(errorMsg = authError) }
+                return@launch
+            }
+            
+            // Validar días de préstamo
+            val daysError = validateLoanDays(loanDays)
+            if (daysError != null) {
+                _home.update { it.copy(errorMsg = daysError) }
+                return@launch
+            }
+            
+            // Validar ID del libro
+            val bookIdError = validateId(bookId)
+            if (bookIdError != null) {
+                _home.update { it.copy(errorMsg = bookIdError) }
+                return@launch
+            }
+            
             val bookToLoan = bookRepository.getBookById(bookId)
-
-            if (bookToLoan == null || bookToLoan.status != "Available") {
-                _home.update { it.copy(errorMsg = "Error: Libro no disponible para préstamo.") }
+            
+            // Validar disponibilidad del libro
+            val bookError = validateBookAvailable(bookToLoan)
+            if (bookError != null) {
+                _home.update { it.copy(errorMsg = bookError) }
                 return@launch
             }
 
@@ -386,7 +410,7 @@ class MainViewModel @Inject constructor(
     }
 
     fun onLoginEmailChange(value: String) {
-        val emailError = if (value.contains("@") && value.isNotBlank()) null else "Correo inválido"
+        val emailError = validateEmail(value)
         _login.update { it.copy(email = value, emailError = emailError) }
         recomputeLoginCanSubmit()
     }
@@ -405,6 +429,19 @@ class MainViewModel @Inject constructor(
     fun submitLogin() {
         val s = _login.value
         if (!s.canSubmit || s.isSubmitting) return
+        
+        // Validaciones adicionales antes de enviar
+        val emailError = validateEmail(s.email.trim())
+        if (emailError != null) {
+            _login.update { it.copy(emailError = emailError) }
+            return
+        }
+        
+        if (s.pass.isBlank()) {
+            _login.update { it.copy(errorMsg = "La contraseña es obligatoria") }
+            return
+        }
+        
         viewModelScope.launch {
             _login.update { it.copy(isSubmitting = true, errorMsg = null, success = false, userRole = null) }
             val result = try {
@@ -446,33 +483,33 @@ class MainViewModel @Inject constructor(
     }
 
     fun onRegisterNameChange(value: String) {
-        val error = if (value.isBlank()) "El nombre es obligatorio" else null
+        val error = validateNameLettersOnly(value)
         _register.update { it.copy(name = value, nameError = error) }
         recomputeRegisterCanSubmit()
     }
 
     fun onRegisterEmailChange(value: String) {
-        val error = if (value.contains("@") && value.isNotBlank()) null else "Formato de correo inválido"
+        val error = validateEmail(value)
         _register.update { it.copy(email = value, emailError = error) }
         recomputeRegisterCanSubmit()
     }
 
     fun onRegisterPhoneChange(value: String) {
-        val error = if (value.isNotBlank() && value.all { it.isDigit() }) null else "Solo se permiten dígitos"
+        val error = validatePhoneDigitsOnly(value)
         _register.update { it.copy(phone = value, phoneError = error) }
         recomputeRegisterCanSubmit()
     }
 
     fun onRegisterPassChange(value: String) {
-        val error = if (value.length >= 8) null else "Mínimo 8 caracteres"
-        val confirmError = if (value != _register.value.confirm) "Las contraseñas no coinciden" else null
+        val error = validateStrongPassword(value)
+        val confirmError = validateConfirm(value, _register.value.confirm)
         _register.update { it.copy(pass = value, passError = error, confirmError = confirmError) }
         recomputeRegisterCanSubmit()
     }
 
     fun onRegisterConfirmChange(value: String) {
         val pass = _register.value.pass
-        val error = if (value == pass) null else "Las contraseñas no coinciden"
+        val error = validateConfirm(pass, value)
         _register.update { it.copy(confirm = value, confirmError = error) }
         recomputeRegisterCanSubmit()
     }
@@ -487,6 +524,34 @@ class MainViewModel @Inject constructor(
     fun submitRegister() {
         val s = _register.value
         if (!s.canSubmit || s.isSubmitting) return
+        
+        // Validaciones finales antes de enviar
+        val nameError = validateNameLettersOnly(s.name.trim())
+        val emailError = validateEmail(s.email.trim())
+        val phoneError = validatePhoneDigitsOnly(s.phone.trim())
+        val passError = validateStrongPassword(s.pass)
+        val confirmError = validateConfirm(s.pass, s.confirm)
+        
+        if (nameError != null || emailError != null || phoneError != null || passError != null || confirmError != null) {
+            _register.update { 
+                it.copy(
+                    nameError = nameError,
+                    emailError = emailError,
+                    phoneError = phoneError,
+                    passError = passError,
+                    confirmError = confirmError
+                ) 
+            }
+            return
+        }
+        
+        // Validar imagen si está presente
+        val imageError = s.profileImageUri?.let { validateBase64Image(it) }
+        if (imageError != null) {
+            _register.update { it.copy(errorMsg = imageError) }
+            return
+        }
+        
         viewModelScope.launch {
             _register.update { it.copy(isSubmitting = true, errorMsg = null, success = false) }
             val result = try {
@@ -511,15 +576,21 @@ class MainViewModel @Inject constructor(
     }
 
     fun onUpdateUserNameChange(name: String) {
+        val error = validateNameLettersOnly(name)
         _updateUserState.update { it.copy(name = name) }
+        // Nota: Podríamos agregar nameError al UpdateUserUiState si queremos mostrar errores en tiempo real
     }
 
     fun onUpdateUserEmailChange(email: String) {
+        val error = validateEmail(email)
         _updateUserState.update { it.copy(email = email) }
+        // Nota: Podríamos agregar emailError al UpdateUserUiState si queremos mostrar errores en tiempo real
     }
 
     fun onUpdateUserPhoneChange(phone: String) {
+        val error = validatePhoneDigitsOnly(phone)
         _updateUserState.update { it.copy(phone = phone) }
+        // Nota: Podríamos agregar phoneError al UpdateUserUiState si queremos mostrar errores en tiempo real
     }
 
     fun loadCurrentUserData() {
@@ -550,6 +621,28 @@ class MainViewModel @Inject constructor(
                 val currentUser = _user.value
                 val state = _updateUserState.value
                 
+                // Validar usuario autenticado
+                val authError = validateUserAuthenticated(currentUser?.id)
+                if (authError != null) {
+                    _updateUserState.update { it.copy(isSubmitting = false, errorMsg = authError) }
+                    return@launch
+                }
+                
+                // Validaciones de campos
+                val nameError = validateNameLettersOnly(state.name.trim())
+                val emailError = validateEmail(state.email.trim())
+                val phoneError = if (state.phone.isNotBlank()) validatePhoneDigitsOnly(state.phone.trim()) else null
+                
+                if (nameError != null || emailError != null || phoneError != null) {
+                    _updateUserState.update { 
+                        it.copy(
+                            isSubmitting = false, 
+                            errorMsg = nameError ?: emailError ?: phoneError ?: "Error de validación"
+                        ) 
+                    }
+                    return@launch
+                }
+                
                 // Verificar si la imagen cambió (nueva imagen seleccionada)
                 val newImageUri = if (state.profileImageUri != currentUser?.profilePictureUri) {
                     state.profileImageUri // Nueva imagen
@@ -557,10 +650,17 @@ class MainViewModel @Inject constructor(
                     null // No hay nueva imagen
                 }
                 
+                // Validar imagen si está presente
+                val imageError = newImageUri?.let { validateBase64Image(it) }
+                if (imageError != null) {
+                    _updateUserState.update { it.copy(isSubmitting = false, errorMsg = imageError) }
+                    return@launch
+                }
+                
                 val updatedUser = currentUser?.copy(
-                    name = state.name,
-                    email = state.email, 
-                    phone = state.phone,
+                    name = state.name.trim(),
+                    email = state.email.trim(), 
+                    phone = state.phone.trim(),
                     profilePictureUri = state.profileImageUri ?: currentUser.profilePictureUri
                 )
                 if (updatedUser != null) {

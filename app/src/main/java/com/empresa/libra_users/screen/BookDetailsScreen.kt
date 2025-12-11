@@ -441,7 +441,7 @@ private fun PaymentDialog(
                 Text("Introduce los datos de tu tarjeta de débito para procesar el préstamo.")
                 OutlinedTextField(value = cardNumber, onValueChange = onCardNumberChange, label = { Text("Número de Tarjeta") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
                 OutlinedTextField(value = expiryDate, onValueChange = onExpiryDateChange, label = { Text("Fecha de Vencimiento (MM/AA)") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
-                OutlinedTextField(value = cvv, onValueChange = onCvvChange, label = { Text("CVV") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
+                OutlinedTextField(value = cvv, onValueChange = onCvvChange, label = { Text("Código de Seguridad") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
             }
         },
         confirmButton = { Button(onClick = onConfirm) { Text("Pagar y Confirmar Préstamo") } },
