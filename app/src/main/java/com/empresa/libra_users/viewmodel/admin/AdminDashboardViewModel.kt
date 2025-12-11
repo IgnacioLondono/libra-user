@@ -514,13 +514,8 @@ class AdminDashboardViewModel @Inject constructor(
             return Result.failure(IllegalArgumentException(bookError))
         }
         
-        // Validar que book no sea null
-        if (book == null) {
-            return Result.failure(IllegalArgumentException("Libro no encontrado"))
-        }
-        
-        // Ahora book es no-null, podemos usarlo directamente
-        val nonNullBook: BookEntity = book
+        // Validar que book no sea null y asignarlo a variable no-null
+        val nonNullBook: BookEntity = book ?: return Result.failure(IllegalArgumentException("Libro no encontrado"))
         
         return try {
 

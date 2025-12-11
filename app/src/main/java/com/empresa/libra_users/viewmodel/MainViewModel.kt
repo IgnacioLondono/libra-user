@@ -303,11 +303,10 @@ class MainViewModel @Inject constructor(
             }
             
             // Validar que userId no sea null
-            if (userId == null) {
+            val nonNullUserId: Long = userId ?: run {
                 _home.update { it.copy(errorMsg = "Usuario no autenticado") }
                 return@launch
             }
-            val nonNullUserId: Long = userId
             
             // Validar días de préstamo
             val daysError = validateLoanDays(loanDays)
@@ -332,14 +331,11 @@ class MainViewModel @Inject constructor(
                 return@launch
             }
             
-            // Validar que bookToLoan no sea null
-            if (bookToLoan == null) {
+            // Validar que bookToLoan no sea null y asignarlo a variable no-null
+            val book: BookEntity = bookToLoan ?: run {
                 _home.update { it.copy(errorMsg = "Libro no encontrado") }
                 return@launch
             }
-            
-            // Ahora bookToLoan es no-null, podemos usarlo directamente
-            val book: BookEntity = bookToLoan
 
             try {
                 val loanDate = LocalDate.now()
