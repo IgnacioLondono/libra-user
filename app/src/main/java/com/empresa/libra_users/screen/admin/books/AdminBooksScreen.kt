@@ -306,6 +306,7 @@ fun AdminBooksScreen(
                 }
             }
         }
+        }
     }
 
     // --- Diálogos ---

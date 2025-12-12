@@ -67,12 +67,9 @@ fun AdminLoansScreen(
     ) { paddingValues ->
         val layoutDirection = LocalLayoutDirection.current
         Box(
-            modifier = modifier.fillMaxSize()
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(
+            modifier = modifier
+                .fillMaxSize()
+                .padding(
                     start = paddingValues.calculateStartPadding(layoutDirection),
                     end = paddingValues.calculateEndPadding(layoutDirection),
                     top = paddingValues.calculateTopPadding(),
@@ -256,4 +253,4 @@ private fun LoanCard(loanDetails: LoanDetails, onMarkAsReturned: () -> Unit) {
             }
         }
     }
-}
+

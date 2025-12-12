@@ -149,6 +149,7 @@ fun AdminUsersScreen(
                 }
             }
         }
+    }
 
     selectedUser?.let { user ->
         val loans by viewModel.getLoansWithDetailsForUser(user.id).collectAsStateWithLifecycle(initialValue = emptyList())

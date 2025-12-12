@@ -43,7 +43,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -265,6 +264,8 @@ fun AdminHomeScreen(
         }
         }
     }
+}
+}
 
 // ============================================================================
 // STATISTICS GRID (2 COLUMNS, 3 ROWS)
@@ -585,4 +586,3 @@ fun PlaceholderScreen(text: String) {
         Text(text, style = MaterialTheme.typography.headlineMedium)
     }
 }
-
