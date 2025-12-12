@@ -26,39 +26,39 @@ class UserRepository @Inject constructor(
     private val userPreferences: UserPreferencesRepository,
     @ApplicationContext private val context: Context
 ) {
-    
+
     // Estado en memoria para los usuarios (sin Room)
     private val _users = MutableStateFlow<List<UserEntity>>(emptyList())
     val users: StateFlow<List<UserEntity>> = _users.asStateFlow()
-    
+
     suspend fun login(email: String, pass: String): Result<String> {
         // Validaciones antes de llamar al API
         val emailError = validateEmail(email.trim())
         if (emailError != null) {
             return Result.failure(IllegalArgumentException(emailError))
         }
-        
+
         if (pass.isBlank()) {
             return Result.failure(IllegalArgumentException("La contraseña es obligatoria"))
         }
-        
+
         // Caso especial para admin
         if (email.equals("admin123@gmail.com", ignoreCase = true) && pass == "admin12345678") {
             return Result.success("ADMIN")
         }
-        
+
         return try {
             val request = LoginRequestDto(email = email, password = pass)
             val response = userApi.login(request)
-            
+
             if (response.isSuccessful && response.body() != null) {
                 val loginResponse = response.body()!!
-                
+
                 // Guardar token y datos del usuario
                 userPreferences.saveAuthToken(loginResponse.token)
                 userPreferences.saveUserEmail(loginResponse.user.email)
                 userPreferences.saveUserRole(loginResponse.user.role)
-                
+
                 // Actualizar estado en memoria
                 val userEntity = loginResponse.user.toEntity()
                 val currentUsers = _users.value.toMutableList()
@@ -69,7 +69,7 @@ class UserRepository @Inject constructor(
                     currentUsers.add(userEntity)
                 }
                 _users.value = currentUsers
-                
+
                 Result.success(loginResponse.user.role.uppercase())
             } else {
                 Result.failure(IllegalArgumentException("Credenciales inválidas"))
@@ -86,7 +86,7 @@ class UserRepository @Inject constructor(
     /**
      * Registra un nuevo usuario en la base de datos del microservicio.
      * Si se proporciona un Uri de imagen, se convierte a Base64 antes de enviar.
-     * 
+     *
      * @param name Nombre del usuario
      * @param email Email del usuario
      * @param phone Teléfono del usuario (opcional)
@@ -95,10 +95,10 @@ class UserRepository @Inject constructor(
      * @return Result<Long> con el ID del usuario creado o error
      */
     suspend fun register(
-        name: String, 
-        email: String, 
-        phone: String, 
-        pass: String, 
+        name: String,
+        email: String,
+        phone: String,
+        pass: String,
         profileImageUri: String?
     ): Result<Long> {
         // Validaciones antes de llamar al API
@@ -106,26 +106,26 @@ class UserRepository @Inject constructor(
         if (nameError != null) {
             return Result.failure(IllegalArgumentException(nameError))
         }
-        
+
         val emailError = validateEmail(email.trim())
         if (emailError != null) {
             return Result.failure(IllegalArgumentException(emailError))
         }
-        
+
         val phoneError = validatePhoneDigitsOnly(phone.trim())
         if (phoneError != null) {
             return Result.failure(IllegalArgumentException(phoneError))
         }
-        
+
         val passError = validateStrongPassword(pass)
         if (passError != null) {
             return Result.failure(IllegalArgumentException(passError))
         }
-        
+
         if (email.equals("admin123@gmail.com", ignoreCase = true)) {
             return Result.failure(IllegalArgumentException("Este correo no se puede registrar."))
         }
-        
+
         return try {
             // Convertir imagen a Base64 si está presente
             val profileImageBase64 = profileImageUri?.let { uriString ->
@@ -138,24 +138,24 @@ class UserRepository @Inject constructor(
                         maxHeight = 800,
                         quality = 85
                     )
-                    
+
                     if (base64 == null) {
                         return Result.failure(IllegalArgumentException("No se pudo cargar la imagen. Por favor, intenta con otra imagen."))
                     }
-                    
+
                     // Validar el Base64 resultante
                     val imageError = validateBase64Image(base64)
                     if (imageError != null) {
                         return Result.failure(IllegalArgumentException(imageError))
                     }
-                    
+
                     base64
                 } catch (e: Exception) {
                     // Si hay error al convertir, retornar error
                     return Result.failure(IllegalArgumentException("Error al procesar la imagen: ${e.message ?: "Formato de imagen inválido"}"))
                 }
             }
-            
+
             // PRIMERO: Crear usuario en la base de datos del microservicio
             val request = RegisterRequestDto(
                 name = name,
@@ -165,19 +165,19 @@ class UserRepository @Inject constructor(
                 profileImageBase64 = profileImageBase64
             )
             val response = userApi.register(request)
-            
+
             if (response.isSuccessful && response.body() != null) {
                 val userDto = response.body()!!
-                
+
                 // SOLO SI ES EXITOSO: Actualizar estado en memoria
                 val userEntity = userDto.toEntity().copy(
-                    password = pass, 
+                    password = pass,
                     profilePictureUri = userDto.profileImageUri // Usar la URL del backend si existe
                 )
                 val currentUsers = _users.value.toMutableList()
                 currentUsers.add(userEntity)
                 _users.value = currentUsers
-                
+
                 Result.success(userEntity.id)
             } else {
                 Result.failure(IllegalArgumentException("Error al registrar usuario en la base de datos"))
@@ -214,7 +214,7 @@ class UserRepository @Inject constructor(
         }
     }
 
-    fun getUsers(): StateFlow<List<UserEntity>> = users
+    // Eliminada la función getUsers() - usar directamente la propiedad 'users'
 
     suspend fun getUserById(id: Long): UserEntity? {
         return try {
@@ -246,7 +246,7 @@ class UserRepository @Inject constructor(
         // Primero buscar en estado en memoria
         val user = _users.value.find { it.email.equals(email, ignoreCase = true) }
         if (user != null) return user
-        
+
         // Si no está, intentar obtener del API
         return try {
             // Nota: El API podría no tener un endpoint para buscar por email
@@ -262,7 +262,7 @@ class UserRepository @Inject constructor(
      * Actualiza un usuario en la base de datos del microservicio.
      * Si se proporciona un Uri de imagen nuevo, se convierte a Base64 antes de enviar.
      * Solo actualiza el estado en memoria si la operación en el API es exitosa.
-     * 
+     *
      * @param user Usuario con los datos actualizados
      * @param newProfileImageUri Uri de la nueva imagen de perfil (opcional, si es diferente a la actual)
      */
@@ -272,28 +272,28 @@ class UserRepository @Inject constructor(
         if (idError != null) {
             return Result.failure(IllegalArgumentException(idError))
         }
-        
+
         val nameError = validateNameLettersOnly(user.name?.trim() ?: "")
         if (nameError != null) {
             return Result.failure(IllegalArgumentException(nameError))
         }
-        
+
         val emailError = validateEmail(user.email?.trim() ?: "")
         if (emailError != null) {
             return Result.failure(IllegalArgumentException(emailError))
         }
-        
+
         val phoneError = user.phone?.let { if (it.isNotBlank()) validatePhoneDigitsOnly(it.trim()) else null }
         if (phoneError != null) {
             return Result.failure(IllegalArgumentException(phoneError))
         }
-        
+
         // Validar imagen si está presente
         val imageError = newProfileImageUri?.let { validateBase64Image(it) }
         if (imageError != null) {
             return Result.failure(IllegalArgumentException(imageError))
         }
-        
+
         return try {
             if (user.id > 0) {
                 // Convertir nueva imagen a Base64 si se proporciona un Uri nuevo
@@ -312,7 +312,7 @@ class UserRepository @Inject constructor(
                         null
                     }
                 }
-                
+
                 // PRIMERO: Intentar actualizar en el API/base de datos
                 val updateRequest = UpdateUserRequestDto(
                     name = user.name,
@@ -321,7 +321,7 @@ class UserRepository @Inject constructor(
                     profileImageBase64 = profileImageBase64 // Enviar Base64 si hay nueva imagen
                 )
                 val response = userApi.updateUser(user.id.toString(), updateRequest)
-                
+
                 if (response.isSuccessful && response.body() != null) {
                     val updatedDto = response.body()!!
                     val updatedEntity = updatedDto.toEntity().copy(
@@ -359,7 +359,7 @@ class UserRepository @Inject constructor(
         }
         return _users.value.size
     }
-    
+
     /**
      * Elimina un usuario de la base de datos del microservicio.
      * Solo actualiza el estado en memoria si la operación en el API es exitosa.
@@ -370,12 +370,12 @@ class UserRepository @Inject constructor(
         if (idError != null) {
             return Result.failure(IllegalArgumentException(idError))
         }
-        
+
         return try {
             if (user.id > 0) {
                 // PRIMERO: Intentar eliminar en el API/base de datos
                 val response = userApi.deleteUser(user.id.toString())
-                
+
                 if (response.isSuccessful) {
                     // SOLO SI ES EXITOSO: Eliminar del estado en memoria
                     _users.value = _users.value.filter { it.id != user.id }

@@ -87,7 +87,7 @@ class AdminDashboardViewModel @Inject constructor(
                 if (userRepository.users.value.isEmpty()) {
                     userRepository.loadAllUsers()
                 }
-                
+
                 _dashboardUiState.update {
                     it.copy(
                         totalBooks = bookRepository.count(),
@@ -111,7 +111,7 @@ class AdminDashboardViewModel @Inject constructor(
                 if (bookRepository.books.value.isEmpty()) {
                     bookRepository.loadAllBooks()
                 }
-                
+
                 bookRepository.getAllBooksFlow()
                     .collect { books ->
                         val filtered = applyBookFilters(books, _booksUiState.value.searchQuery, _booksUiState.value.selectedCategory, _booksUiState.value.soloDisponibles)
@@ -170,8 +170,8 @@ class AdminDashboardViewModel @Inject constructor(
                 if (userRepository.users.value.isEmpty()) {
                     userRepository.loadAllUsers()
                 }
-                
-                userRepository.getUsers()
+
+                userRepository.users
                     .collect { users ->
                         _usersUiState.update { it.copy(isLoading = false, users = users) }
                     }
@@ -270,20 +270,24 @@ class AdminDashboardViewModel @Inject constructor(
                 if (userRepository.users.value.isEmpty()) {
                     userRepository.loadAllUsers()
                 }
-                
+
                 val allLoans = loanRepository.getAllLoans()
                 val allBooks = bookRepository.getAllBooks()
-                val allUsers = userRepository.getUsers().value
+                val allUsers = userRepository.users.value
 
                 val topBooks = allLoans.groupBy { it.bookId }
-                    .mapNotNull { (bookId, loans) ->
-                        allBooks.find { it.id == bookId }?.let { BookLoanStats(it, loans.size) }
+                    .mapNotNull { (bookId: Long, loans: List<LoanEntity>) ->
+                        allBooks.find { it.id == bookId }?.let { book: BookEntity ->
+                            BookLoanStats(book, loans.size)
+                        }
                     }
                     .sortedByDescending { it.loanCount }
                     .take(5)
                 val topUsers = allLoans.groupBy { it.userId }
-                    .mapNotNull { (userId, loans) ->
-                        allUsers.find { it.id == userId }?.let { UserLoanStats(it, loans.size) }
+                    .mapNotNull { (userId: Long, loans: List<LoanEntity>) ->
+                        allUsers.find { it.id == userId }?.let { user: UserEntity ->
+                            UserLoanStats(user, loans.size)
+                        }
                     }
                     .sortedByDescending { it.loanCount }
                     .take(5)
@@ -320,7 +324,7 @@ class AdminDashboardViewModel @Inject constructor(
     fun updateUser(user: UserEntity) = viewModelScope.launch {
         userRepository.updateUser(user)
     }
-    
+
     /**
      * Elimina un usuario de la base de datos del microservicio.
      * La operación se realiza primero en el API, y solo si es exitosa se actualiza el estado en memoria.
@@ -333,16 +337,16 @@ class AdminDashboardViewModel @Inject constructor(
                 _usersUiState.update { it.copy(error = idError) }
                 return@launch
             }
-            
+
             // Verificar si el usuario tiene préstamos activos
             val activeLoans = loanRepository.getLoansByUserAndStatus(user.id, "Active")
             if (activeLoans.isNotEmpty()) {
-                _usersUiState.update { 
-                    it.copy(error = "No se puede eliminar el usuario porque tiene ${activeLoans.size} préstamo(s) activo(s)") 
+                _usersUiState.update {
+                    it.copy(error = "No se puede eliminar el usuario porque tiene ${activeLoans.size} préstamo(s) activo(s)")
                 }
                 return@launch
             }
-            
+
             val result = userRepository.deleteUser(user)
             if (result.isFailure) {
                 _usersUiState.update { it.copy(error = result.exceptionOrNull()?.message ?: "Error al eliminar usuario") }
@@ -458,20 +462,20 @@ class AdminDashboardViewModel @Inject constructor(
                 _booksUiState.update { it.copy(error = idError) }
                 return@launch
             }
-            
+
             // Verificar si el libro tiene préstamos activos
             val activeLoansCount = bookRepository.countActiveLoansForBook(book.id)
             if (activeLoansCount > 0) {
-                _booksUiState.update { 
-                    it.copy(error = "No se puede eliminar el libro porque tiene $activeLoansCount préstamo(s) activo(s)") 
+                _booksUiState.update {
+                    it.copy(error = "No se puede eliminar el libro porque tiene $activeLoansCount préstamo(s) activo(s)")
                 }
                 return@launch
             }
-            
+
             val result = bookRepository.delete(book)
             if (result.isFailure) {
-                _booksUiState.update { 
-                    it.copy(error = result.exceptionOrNull()?.message ?: "Error al eliminar libro") 
+                _booksUiState.update {
+                    it.copy(error = result.exceptionOrNull()?.message ?: "Error al eliminar libro")
                 }
             } else {
                 // Recargar libros para reflejar los cambios
@@ -488,12 +492,12 @@ class AdminDashboardViewModel @Inject constructor(
         if (userIdError != null) {
             return Result.failure(IllegalArgumentException(userIdError))
         }
-        
+
         val bookIdError = validateId(bookId)
         if (bookIdError != null) {
             return Result.failure(IllegalArgumentException(bookIdError))
         }
-        
+
         // Validar fechas
         val dateError = validateLoanDates(fechaPrestamo, fechaDevolucion)
         if (dateError != null) {
@@ -507,19 +511,19 @@ class AdminDashboardViewModel @Inject constructor(
 
         // Obtener el libro
         val book = bookRepository.getBookById(bookId)
-        
+
         // Validar disponibilidad del libro
         val bookError = validateBookAvailable(book)
         if (bookError != null) {
             return Result.failure(IllegalArgumentException(bookError))
         }
-        
+
         // Validar que book no sea null y asignarlo a variable no-null
         if (book == null) {
             return Result.failure(IllegalArgumentException("Libro no encontrado"))
         }
         val nonNullBook: BookEntity = book
-        
+
         return try {
 
             // PRIMERO: Crear el préstamo en la base de datos del microservicio
@@ -532,7 +536,7 @@ class AdminDashboardViewModel @Inject constructor(
                 status = "Active"
             )
             val loanResult = loanRepository.insert(newLoan)
-            
+
             if (loanResult.isSuccess) {
                 // SOLO SI EL PRÉSTAMO SE CREÓ EXITOSAMENTE: Actualizar disponibles del libro
                 val disponiblesActuales = nonNullBook.disponibles
@@ -543,7 +547,7 @@ class AdminDashboardViewModel @Inject constructor(
                     status = nuevoStatus
                 )
                 val bookUpdateResult = bookRepository.update(updatedBook)
-                
+
                 if (bookUpdateResult.isSuccess) {
                     Result.success("Préstamo creado correctamente en la base de datos.")
                 } else {
@@ -566,7 +570,7 @@ class AdminDashboardViewModel @Inject constructor(
             try {
                 // PRIMERO: Devolver préstamo en la base de datos del microservicio
                 val returnResult = loanRepository.returnLoan(loan.id)
-                
+
                 if (returnResult.isSuccess) {
                     // SOLO SI ES EXITOSO: Actualizar disponibles del libro
                     val book = bookRepository.getBookById(loan.bookId)
@@ -580,8 +584,8 @@ class AdminDashboardViewModel @Inject constructor(
                     // Recargar detalles de préstamos para reflejar los cambios
                     loadLoanDetails()
                 } else {
-                    _loansUiState.update { 
-                        it.copy(error = returnResult.exceptionOrNull()?.message ?: "Error al devolver préstamo") 
+                    _loansUiState.update {
+                        it.copy(error = returnResult.exceptionOrNull()?.message ?: "Error al devolver préstamo")
                     }
                 }
             } catch (e: Exception) {
@@ -604,7 +608,7 @@ class AdminDashboardViewModel @Inject constructor(
 
             // PRIMERO: Extender préstamo en la base de datos del microservicio
             val extendResult = loanRepository.extendLoan(loan.id)
-            
+
             if (extendResult.isSuccess) {
                 Result.success("Plazo extendido correctamente en la base de datos.")
             } else {
@@ -699,7 +703,8 @@ class AdminDashboardViewModel @Inject constructor(
         viewModelScope.launch {
             _loansUiState.update { it.copy(isLoading = true) }
             try {
-                loanRepository.loadAllLoans()
+                // loadLoanDetails() ya carga los préstamos desde el StateFlow
+                // No es necesario llamar a loadAllLoans() que no existe
                 loadLoanDetails()
             } catch (e: Exception) {
                 _loansUiState.update { it.copy(isLoading = false, error = e.message) }
@@ -716,7 +721,8 @@ class AdminDashboardViewModel @Inject constructor(
             try {
                 bookRepository.loadAllBooks()
                 userRepository.loadAllUsers()
-                loanRepository.loadAllLoans()
+                // No llamar a loadAllLoans() que no existe
+                // getAllLoans() ya obtiene los préstamos del StateFlow
                 loadReports()
             } catch (e: Exception) {
                 _reportsUiState.update { it.copy(isLoading = false, error = e.message) }

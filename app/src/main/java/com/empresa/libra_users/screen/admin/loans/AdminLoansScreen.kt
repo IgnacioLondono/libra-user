@@ -253,4 +253,4 @@ private fun LoanCard(loanDetails: LoanDetails, onMarkAsReturned: () -> Unit) {
             }
         }
     }
-
+}
