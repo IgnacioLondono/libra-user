@@ -71,12 +71,9 @@ fun AdminUsersScreen(
     ) { paddingValues ->
         val layoutDirection = LocalLayoutDirection.current
         Box(
-            modifier = modifier.fillMaxSize()
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(
+            modifier = modifier
+                .fillMaxSize()
+                .padding(
                     start = paddingValues.calculateStartPadding(layoutDirection),
                     end = paddingValues.calculateEndPadding(layoutDirection),
                     top = paddingValues.calculateTopPadding(),
@@ -152,7 +149,6 @@ fun AdminUsersScreen(
                 }
             }
         }
-    }
 
     selectedUser?.let { user ->
         val loans by viewModel.getLoansWithDetailsForUser(user.id).collectAsStateWithLifecycle(initialValue = emptyList())

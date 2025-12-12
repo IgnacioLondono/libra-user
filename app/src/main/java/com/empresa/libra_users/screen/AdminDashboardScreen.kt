@@ -263,8 +263,8 @@ fun AdminHomeScreen(
                 reportsUiState = reportsUiState
             )
         }
+        }
     }
-}
 
 // ============================================================================
 // STATISTICS GRID (2 COLUMNS, 3 ROWS)
