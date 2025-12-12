@@ -47,9 +47,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.pullrefresh.PullRefreshIndicator
-import androidx.compose.material3.pullrefresh.pullRefresh
-import androidx.compose.material3.pullrefresh.rememberPullRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -241,18 +238,9 @@ fun AdminHomeScreen(
 ) {
     val dashboardUiState by viewModel.dashboardUiState.collectAsStateWithLifecycle()
     val reportsUiState by viewModel.reportsUiState.collectAsStateWithLifecycle()
-    
-    // Pull to refresh
-    val isRefreshing = dashboardUiState.isLoading
-    val pullRefreshState = rememberPullRefreshState(
-        refreshing = isRefreshing,
-        onRefresh = { viewModel.refreshDashboard() }
-    )
 
     Box(
-        modifier = modifier
-            .fillMaxSize()
-            .pullRefresh(pullRefreshState)
+        modifier = modifier.fillMaxSize()
     ) {
         Column(
             modifier = Modifier
@@ -275,11 +263,6 @@ fun AdminHomeScreen(
                 reportsUiState = reportsUiState
             )
         }
-        PullRefreshIndicator(
-            refreshing = isRefreshing,
-            state = pullRefreshState,
-            modifier = Modifier.align(Alignment.TopCenter)
-        )
     }
 }
 

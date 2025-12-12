@@ -17,9 +17,6 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.pullrefresh.PullRefreshIndicator
-import androidx.compose.material3.pullrefresh.pullRefresh
-import androidx.compose.material3.pullrefresh.rememberPullRefreshState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -36,13 +33,6 @@ fun CatalogScreen(vm: MainViewModel) {
     var searchQuery by remember { mutableStateOf("") }
     var selectedCategory by remember { mutableStateOf("Todos") }
     val purpleColor = Color(0xFF6650a4)
-    
-    // Pull to refresh
-    val isRefreshing = homeState.isLoading
-    val pullRefreshState = rememberPullRefreshState(
-        refreshing = isRefreshing,
-        onRefresh = { vm.refreshCatalog() }
-    )
     
     // Cargar libros al iniciar la pantalla
     LaunchedEffect(Unit) {
@@ -85,9 +75,7 @@ fun CatalogScreen(vm: MainViewModel) {
     }
 
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .pullRefresh(pullRefreshState)
+        modifier = Modifier.fillMaxSize()
     ) {
         Surface(
             modifier = Modifier.fillMaxSize(),
@@ -122,11 +110,6 @@ fun CatalogScreen(vm: MainViewModel) {
                 }
             }
         }
-        PullRefreshIndicator(
-            refreshing = isRefreshing,
-            state = pullRefreshState,
-            modifier = Modifier.align(Alignment.TopCenter)
-        )
     }
 }
 

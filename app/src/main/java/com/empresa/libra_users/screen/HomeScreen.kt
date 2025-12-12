@@ -9,9 +9,6 @@ import androidx.compose.foundation.lazy.grid.LazyHorizontalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
-import androidx.compose.material3.pullrefresh.PullRefreshIndicator
-import androidx.compose.material3.pullrefresh.pullRefresh
-import androidx.compose.material3.pullrefresh.rememberPullRefreshState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -44,13 +41,6 @@ fun HomeScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     var hasShownWelcome by remember { mutableStateOf(false) }
-    
-    // Pull to refresh
-    val isRefreshing = homeState.isLoading
-    val pullRefreshState = rememberPullRefreshState(
-        refreshing = isRefreshing,
-        onRefresh = { vm.refreshHome() }
-    )
     
     // Cargar libros al iniciar la pantalla
     LaunchedEffect(Unit) {
@@ -102,9 +92,7 @@ fun HomeScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { paddingValues ->
         Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .pullRefresh(pullRefreshState)
+            modifier = Modifier.fillMaxSize()
         ) {
             Surface(
                 modifier = Modifier.fillMaxSize(),
@@ -118,11 +106,6 @@ fun HomeScreen(
                     item { TrendingBooksSection(books = trendingBooks, onBookClick = { book -> selectedBook = book }, purpleColor = purpleColor) }
                 }
             }
-            PullRefreshIndicator(
-                refreshing = isRefreshing,
-                state = pullRefreshState,
-                modifier = Modifier.align(Alignment.TopCenter)
-            )
         }
     }
 }

@@ -11,9 +11,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.ShoppingCartCheckout
 import androidx.compose.material3.*
-import androidx.compose.material3.pullrefresh.PullRefreshIndicator
-import androidx.compose.material3.pullrefresh.pullRefresh
-import androidx.compose.material3.pullrefresh.rememberPullRefreshState
 import androidx.compose.runtime.*
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
@@ -46,27 +43,10 @@ fun CartScreen(vm: MainViewModel, navController: NavController) {
     var selectedCartItemForPayment by remember { mutableStateOf<CartItem?>(null) }
     val isMultipleLoans = cartItems.size > 1
     val totalPrice = cartItems.sumOf { it.price }
-    val scope = rememberCoroutineScope()
-    var isRefreshing by remember { mutableStateOf(false) }
-    
-    // Pull to refresh
-    val pullRefreshState = rememberPullRefreshState(
-        refreshing = isRefreshing,
-        onRefresh = {
-            isRefreshing = true
-            scope.launch {
-                vm.refreshCart()
-                delay(500)
-                isRefreshing = false
-            }
-        }
-    )
 
     if (cartItems.isEmpty()) {
         Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .pullRefresh(pullRefreshState),
+            modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.Center
         ) {
             Column(
@@ -85,11 +65,6 @@ fun CartScreen(vm: MainViewModel, navController: NavController) {
                     color = MaterialTheme.colorScheme.onSurface
                 )
             }
-            PullRefreshIndicator(
-                refreshing = isRefreshing,
-                state = pullRefreshState,
-                modifier = Modifier.align(Alignment.TopCenter)
-            )
         }
     } else {
         Scaffold(
@@ -147,9 +122,7 @@ fun CartScreen(vm: MainViewModel, navController: NavController) {
             }
         ) { paddingValues ->
             Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .pullRefresh(pullRefreshState)
+                modifier = Modifier.fillMaxSize()
             ) {
                 Column(
                     modifier = Modifier
@@ -216,11 +189,6 @@ fun CartScreen(vm: MainViewModel, navController: NavController) {
                         }
                     }
                 }
-            PullRefreshIndicator(
-                refreshing = isRefreshing,
-                state = pullRefreshState,
-                modifier = Modifier.align(Alignment.TopCenter)
-            )
             }
         }
         

@@ -8,9 +8,6 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material3.*
-import androidx.compose.material3.pullrefresh.PullRefreshIndicator
-import androidx.compose.material3.pullrefresh.pullRefresh
-import androidx.compose.material3.pullrefresh.rememberPullRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -34,14 +31,6 @@ fun AdminLoansScreen(
     viewModel: AdminDashboardViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.loansUiState.collectAsStateWithLifecycle()
-    
-    // Pull to refresh
-    val isRefreshing = uiState.isLoading
-    val pullRefreshState = rememberPullRefreshState(
-        refreshing = isRefreshing,
-        onRefresh = { viewModel.refreshLoans() }
-    )
-
     Scaffold(
         topBar = {
             TopAppBar(
@@ -78,9 +67,7 @@ fun AdminLoansScreen(
     ) { paddingValues ->
         val layoutDirection = LocalLayoutDirection.current
         Box(
-            modifier = modifier
-                .fillMaxSize()
-                .pullRefresh(pullRefreshState)
+            modifier = modifier.fillMaxSize()
         ) {
             Box(
                 modifier = Modifier
@@ -162,11 +149,6 @@ fun AdminLoansScreen(
                     }
                 }
             }
-            PullRefreshIndicator(
-                refreshing = isRefreshing,
-                state = pullRefreshState,
-                modifier = Modifier.align(Alignment.TopCenter)
-            )
         }
     }
 }

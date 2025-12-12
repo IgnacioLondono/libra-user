@@ -10,9 +10,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material3.*
-import androidx.compose.material3.pullrefresh.PullRefreshIndicator
-import androidx.compose.material3.pullrefresh.pullRefresh
-import androidx.compose.material3.pullrefresh.rememberPullRefreshState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -38,14 +35,6 @@ fun AdminUsersScreen(
 ) {
     val uiState by viewModel.usersUiState.collectAsStateWithLifecycle()
     var selectedUser by remember { mutableStateOf<UserEntity?>(null) }
-    
-    // Pull to refresh
-    val isRefreshing = uiState.isLoading
-    val pullRefreshState = rememberPullRefreshState(
-        refreshing = isRefreshing,
-        onRefresh = { viewModel.refreshUsers() }
-    )
-
     Scaffold(
         topBar = {
             TopAppBar(
@@ -82,9 +71,7 @@ fun AdminUsersScreen(
     ) { paddingValues ->
         val layoutDirection = LocalLayoutDirection.current
         Box(
-            modifier = modifier
-                .fillMaxSize()
-                .pullRefresh(pullRefreshState)
+            modifier = modifier.fillMaxSize()
         ) {
             Box(
                 modifier = Modifier

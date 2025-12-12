@@ -16,9 +16,6 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
-import androidx.compose.material3.pullrefresh.PullRefreshIndicator
-import androidx.compose.material3.pullrefresh.pullRefresh
-import androidx.compose.material3.pullrefresh.rememberPullRefreshState
 import androidx.compose.runtime.*
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
@@ -57,13 +54,6 @@ fun AdminBooksScreen(
     var selectedCategory by remember { mutableStateOf<String?>(null) }
     var soloDisponibles by remember { mutableStateOf(false) }
     
-    // Pull to refresh
-    val isRefreshing = uiState.isLoading
-    val pullRefreshState = rememberPullRefreshState(
-        refreshing = isRefreshing,
-        onRefresh = { viewModel.refreshBooks() }
-    )
-
     // Obtener categorías únicas
     val categorias = remember(uiState.books) {
         uiState.books.map { it.categoria }.distinct().sorted()
@@ -127,9 +117,7 @@ fun AdminBooksScreen(
     ) { paddingValues ->
         val layoutDirection = LocalLayoutDirection.current
         Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .pullRefresh(pullRefreshState)
+            modifier = Modifier.fillMaxSize()
         ) {
             Column(
                 modifier = Modifier
@@ -317,11 +305,6 @@ fun AdminBooksScreen(
                     }
                 }
             }
-            PullRefreshIndicator(
-                refreshing = isRefreshing,
-                state = pullRefreshState,
-                modifier = Modifier.align(Alignment.TopCenter)
-            )
         }
     }
 
